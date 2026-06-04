@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables — JANGAN commit file ini!
+# Salin .env.example → .env lalu isi nilainya.
+.env
