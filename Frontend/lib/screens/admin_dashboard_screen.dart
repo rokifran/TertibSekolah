@@ -3,266 +3,49 @@ import '../theme/app_colors.dart';
 import '../core/auth_service.dart';
 import 'login_screen.dart';
 
-/// Dashboard khusus Admin — ditampilkan setelah login berhasil dengan role Admin.
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   final AuthResult authResult;
 
   const AdminDashboardScreen({super.key, required this.authResult});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Keluar',
-            onPressed: () => _confirmLogout(context),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header greeting ──────────────────────────────────────────
-            _buildGreetingCard(theme),
-            const SizedBox(height: 24),
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _namaController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String _selectedRole = 'guru';
+  bool _obscurePassword = true;
 
-            // ── Section title ─────────────────────────────────────────────
-            Text(
-              'Menu Admin',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: AppColors.onBackground,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Grid menu ─────────────────────────────────────────────────
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              children: [
-                _buildMenuCard(
-                  icon: Icons.people_alt_rounded,
-                  label: 'Manajemen\nPengguna',
-                  color: AppColors.primaryContainer,
-                  onTap: () => _showComingSoon(context, 'Manajemen Pengguna'),
-                ),
-                _buildMenuCard(
-                  icon: Icons.access_time_rounded,
-                  label: 'Data\nKeterlambatan',
-                  color: AppColors.secondary,
-                  onTap: () => _showComingSoon(context, 'Data Keterlambatan'),
-                ),
-                _buildMenuCard(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Laporan &\nStatistik',
-                  color: AppColors.tertiary,
-                  onTap: () => _showComingSoon(context, 'Laporan & Statistik'),
-                ),
-                _buildMenuCard(
-                  icon: Icons.settings_rounded,
-                  label: 'Pengaturan\nAplikasi',
-                  color: AppColors.terracottaFab,
-                  onTap: () => _showComingSoon(context, 'Pengaturan Aplikasi'),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Info card ─────────────────────────────────────────────────
-            _buildInfoCard(theme),
-          ],
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  // ─── Widgets ───────────────────────────────────────────────────────────────
-
-  Widget _buildGreetingCard(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryContainer],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  void _handleAddUser() {
+    if (_formKey.currentState?.validate() ?? false) {
+      // TODO: Implement actual add user logic here
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'User ${_namaController.text} ($_selectedRole) berhasil ditambahkan!',
+          ),
+          backgroundColor: AppColors.primary,
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.onPrimary.withValues(alpha: 0.2),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings_rounded,
-              color: AppColors.onPrimary,
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Halo, ${authResult.nama}!',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppColors.onPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.onPrimary.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '🔑  ${authResult.roleName}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppColors.onPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  authResult.email,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.onPrimary.withValues(alpha: 0.75),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onSurface,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            color: AppColors.secondary,
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Fitur-fitur di atas masih dalam pengembangan. '
-              'Anda berhasil login sebagai Admin!',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.onSecondaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature — segera hadir!'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.primaryContainer,
-      ),
-    );
+      );
+      _namaController.clear();
+      _emailController.clear();
+      _passwordController.clear();
+      setState(() {
+        _selectedRole = 'guru';
+      });
+    }
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
@@ -278,9 +61,7 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Keluar'),
           ),
         ],
@@ -289,10 +70,383 @@ class AdminDashboardScreen extends StatelessWidget {
 
     if (confirmed == true && context.mounted) {
       await AuthService.signOut();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: _buildAppBar(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 24),
+            _buildAddUserForm(context),
+            const SizedBox(height: 24),
+            _buildSecondaryActions(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      title: Row(
+        children: [
+          const Icon(
+            Icons.schedule_rounded,
+            color: AppColors.primary,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Tertib Sekolah',
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Dashboard Admin',
+          style: TextStyle(
+            fontFamily: 'Manrope',
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.onBackground,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Manage users and roles efficiently.',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            color: AppColors.onBackground.withValues(alpha: 0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddUserForm(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tambah User Baru',
+              style: TextStyle(
+                fontFamily: 'Manrope',
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onBackground,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Nama Lengkap
+            _buildTextField(
+              controller: _namaController,
+              hintText: 'Nama Lengkap',
+              icon: Icons.person_outline_rounded,
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Nama harus diisi' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Email
+            _buildTextField(
+              controller: _emailController,
+              hintText: 'Masukkan Email',
+              icon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) =>
+                  value == null || value.isEmpty || !value.contains('@')
+                  ? 'Email tidak valid'
+                  : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Password
+            _buildTextField(
+              controller: _passwordController,
+              hintText: 'Masukkan Password',
+              icon: Icons.lock_outline_rounded,
+              obscureText: _obscurePassword,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppColors.outline,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+              validator: (value) => value == null || value.length < 6
+                  ? 'Password minimal 6 karakter'
+                  : null,
+            ),
+            const SizedBox(height: 20),
+
+            // Role Selection
+            const Text(
+              'Role',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: _buildRoleToggleButton('Guru', 'guru')),
+                  Expanded(child: _buildRoleToggleButton('Siswa', 'siswa')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Submit Button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _handleAddUser,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.add_circle_rounded),
+                label: const Text(
+                  'Tambah User',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: const TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 14,
+        color: AppColors.onSurface,
+      ),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(
+          color: AppColors.onBackground.withValues(alpha: 0.5),
+        ),
+        prefixIcon: Icon(icon, color: AppColors.outline),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleToggleButton(String label, String value) {
+    final isSelected = _selectedRole == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRole = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            color: isSelected
+                ? AppColors.onBackground
+                : AppColors.onBackground.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecondaryActions(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Lihat Data User — segera hadir!'),
+                  backgroundColor: AppColors.primaryContainer,
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.outline),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.group_rounded),
+            label: const Text(
+              'Lihat Data User',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: FilledButton.icon(
+            onPressed: () => _confirmLogout(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(
+                0xFF7A9F76,
+              ), // Use exact color from design for secondary logout
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text(
+              'Logout',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
