@@ -7,6 +7,9 @@ import 'screens/login_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Pastikan env vars tersedia sebelum inisialisasi
+  SupabaseConfig.validate();
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,

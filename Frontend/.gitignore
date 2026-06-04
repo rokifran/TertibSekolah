@@ -44,5 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Supabase credentials — do NOT commit
-lib/core/supabase_config.dart
+# Environment variables — JANGAN commit file ini!
+# Salin .env.example → .env lalu isi nilainya.
+.env
