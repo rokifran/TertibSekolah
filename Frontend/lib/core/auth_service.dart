@@ -55,14 +55,11 @@ class AuthService {
         throw const AuthException('Login gagal. Silakan coba lagi.');
       }
 
-      // 2. Ambil data profile + role dari tabel users
-      final userData = await supabase
-          .from('users')
-          .select('nama, email, role_id, roles(role_name)')
-          .eq('id', user.id)
-          .maybeSingle();
+      // 2. Ambil data profile + role via RPC (bypass RLS dengan SECURITY DEFINER)
+      //    Query langsung ke tabel users menyebabkan infinite recursion di RLS policy.
+      final dynamic rpcResult = await supabase.rpc('get_my_profile');
 
-      if (userData == null) {
+      if (rpcResult == null) {
         // User ada di Auth tapi tidak ada di tabel users
         await supabase.auth.signOut();
         throw const AuthException(
@@ -70,9 +67,8 @@ class AuthService {
         );
       }
 
-      final roleName =
-          (userData['roles'] as Map<String, dynamic>?)?['role_name'] as String? ??
-          'Unknown';
+      final userData = rpcResult as Map<String, dynamic>;
+      final roleName = userData['role_name'] as String? ?? 'Unknown';
 
       return AuthResult(
         userId: user.id,
