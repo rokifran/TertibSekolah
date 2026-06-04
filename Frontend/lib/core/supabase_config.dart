@@ -47,7 +47,7 @@ class SupabaseConfig {
         '║         ❌  ENV VARS TIDAK DITEMUKAN                 ║\n'
         '╠══════════════════════════════════════════════════════╣\n'
         '║  Solusi:                                             ║\n'
-        '║  1. Di VS Code → tekan F5 → pilih                   ║\n'
+        '║  1. Di VS Code → tekan F5 → pilih                    ║\n'
         '║     "Debug (dengan .env)"                            ║\n'
         '║  2. Atau jalankan di terminal:                       ║\n'
         '║     flutter run --dart-define-from-file=.env         ║\n'
