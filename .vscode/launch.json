@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Frontend (Debug)",
+            "cwd": "Frontend",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define-from-file=.env"
+            ]
+        },
+        {
+            "name": "Frontend (Profile)",
+            "cwd": "Frontend",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "args": [
+                "--dart-define-from-file=.env"
+            ]
+        },
+        {
+            "name": "Frontend (Release)",
+            "cwd": "Frontend",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "args": [
+                "--dart-define-from-file=.env"
+            ]
+        }
+    ]
+}
