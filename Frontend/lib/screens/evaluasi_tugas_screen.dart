@@ -116,6 +116,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: _buildEvaluasiCard(
                     context,
+                    idSiswa: siswa['id'].toString(),
                     namaSiswa: siswa['nama'] ?? 'Tanpa Nama',
                     tugas: 'Pembinaan Kedisiplinan',
                     kelas: siswa['class_room'] ?? '-',
@@ -133,17 +134,17 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
-  Widget _buildEvaluasiCard(BuildContext context, {required String namaSiswa, required String tugas, required String kelas, required String tanggal, required String tingkat}) {
+  Widget _buildEvaluasiCard(BuildContext context, {required String idSiswa, required String namaSiswa, required String tugas, required String kelas, required String tanggal, required String tingkat}) {
     Color tingkatColor;
     Color tingkatBgColor;
     final lowercaseTingkat = tingkat.toLowerCase();
     
     if (lowercaseTingkat == 'aman') {
-      tingkatColor = Colors.green[700]!;
-      tingkatBgColor = Colors.green[100]!;
+      tingkatColor = AppColors.outline;
+      tingkatBgColor = Colors.white;
     } else if (lowercaseTingkat == 'ringan') {
-      tingkatColor = AppColors.primary;
-      tingkatBgColor = AppColors.secondaryContainer;
+      tingkatColor = Colors.green[800]!;
+      tingkatBgColor = Colors.lightGreen[100]!;
     } else if (lowercaseTingkat == 'sedang') {
       tingkatColor = AppColors.tertiary;
       tingkatBgColor = AppColors.tertiaryContainer.withValues(alpha: 0.3);
@@ -260,6 +261,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => FormEvaluasiTugasScreen(
+                        idSiswa: idSiswa,
                         namaSiswa: namaSiswa,
                         tugas: tugas,
                         kelas: kelas,

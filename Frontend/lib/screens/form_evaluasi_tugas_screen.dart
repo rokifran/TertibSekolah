@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../main.dart';
 
 class FormEvaluasiTugasScreen extends StatefulWidget {
+  final String idSiswa;
   final String namaSiswa;
   final String tugas;
   final String kelas;
 
   const FormEvaluasiTugasScreen({
     super.key,
+    required this.idSiswa,
     required this.namaSiswa,
     required this.tugas,
     required this.kelas,
@@ -23,6 +26,42 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
 
   String? _tingkatKelengkapan;
   String? _tingkatKesesuaian;
+
+  bool _isLoadingHistory = true;
+  List<Map<String, dynamic>> _lateHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLateHistory();
+  }
+
+  Future<void> _fetchLateHistory() async {
+    try {
+      final response = await supabase
+          .from('attendance')
+          .select('*')
+          .eq('user_id', widget.idSiswa)
+          .order('tanggal', ascending: false)
+          .order('waktu', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _lateHistory = List<Map<String, dynamic>>.from(response);
+          _isLoadingHistory = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingHistory = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat riwayat: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -143,29 +182,49 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  '3 Kali Terlambat',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error,
+              if (!_isLoadingHistory && _lateHistory.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_lateHistory.length} Kali Terlambat',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildHistoryItem('12 Mei 2026', 'Terlambat 15 menit', 'Alasan: Macet di jalan'),
-          const Divider(color: AppColors.surfaceVariant),
-          _buildHistoryItem('05 Mei 2026', 'Terlambat 10 menit', 'Alasan: Bangun kesiangan'),
-          const Divider(color: AppColors.surfaceVariant),
-          _buildHistoryItem('28 Apr 2026', 'Terlambat 20 menit', 'Alasan: Kendaraan mogok'),
+          if (_isLoadingHistory)
+            const Center(child: CircularProgressIndicator())
+          else if (_lateHistory.isEmpty)
+            const Text(
+              'Belum ada riwayat keterlambatan.',
+              style: TextStyle(color: AppColors.outline),
+            )
+          else
+            ..._lateHistory.map((history) {
+              final String tanggal = history['tanggal'] ?? '-';
+              final int duration = history['duration_minutes'] ?? 0;
+              final String level = history['level'] ?? '-';
+              return Column(
+                children: [
+                  _buildHistoryItem(
+                    tanggal,
+                    'Terlambat $duration menit',
+                    'Tingkat: $level',
+                  ),
+                  if (history != _lateHistory.last)
+                    const Divider(color: AppColors.surfaceVariant),
+                ],
+              );
+            }),
         ],
       ),
     );

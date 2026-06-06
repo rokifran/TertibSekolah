@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
+import '../core/auth_service.dart';
+import 'login_screen.dart';
 import 'input_keterlambatan_screen.dart';
 import 'evaluasi_tugas_screen.dart';
 import 'data_siswa_screen.dart';
@@ -19,6 +21,50 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Keluar',
+          style: TextStyle(fontFamily: 'Manrope', fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar?',
+          style: TextStyle(fontFamily: 'Inter'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Batal',
+              style: TextStyle(fontFamily: 'Inter', color: AppColors.onSurfaceVariant),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+            ),
+            child: const Text('Keluar', style: TextStyle(fontFamily: 'Inter')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await AuthService.signOut();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
@@ -186,25 +232,25 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Logout Action
-          SizedBox(
-            width: double.infinity,
+          // ── Logout Button ──
+          Center(
             child: OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.logout, color: AppColors.error),
+              onPressed: () => _confirmLogout(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error, width: 1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text(
                 'Logout',
                 style: TextStyle(
-                  color: AppColors.error,
+                  fontFamily: 'Inter',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: AppColors.error),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
@@ -379,8 +425,11 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
     if (tardinessLevel != null) {
       String lvl = tardinessLevel.toLowerCase();
       if (lvl == 'aman') {
-        levelColor = Colors.green[700]!;
-        levelBgColor = Colors.green[100]!;
+        levelColor = AppColors.outline;
+        levelBgColor = Colors.white;
+      } else if (lvl == 'ringan') {
+        levelColor = Colors.green[800]!;
+        levelBgColor = Colors.lightGreen[100]!;
       } else if (lvl == 'sedang') {
         levelColor = Colors.orange[800]!;
         levelBgColor = Colors.orange[100]!;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../main.dart';
 
 class DataSiswaView extends StatefulWidget {
   const DataSiswaView({super.key});
@@ -11,42 +12,59 @@ class DataSiswaView extends StatefulWidget {
 class _DataSiswaViewState extends State<DataSiswaView> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
+  bool _isLoading = true;
 
-  final List<Map<String, String>> _allSiswa = [
-    {
-      'namaSiswa': 'Budi Santoso',
-      'kelas': '10-A',
-      'nisn': '1234567890',
-      'tingkat': 'Aman',
-    },
-    {
-      'namaSiswa': 'Siti Aminah',
-      'kelas': '10-B',
-      'nisn': '1234567891',
-      'tingkat': 'Ringan',
-    },
-    {
-      'namaSiswa': 'Andi Irawan',
-      'kelas': '11-IPA',
-      'nisn': '1234567892',
-      'tingkat': 'Sedang',
-    },
-    {
-      'namaSiswa': 'Dewi Lestari',
-      'kelas': '12-IPS',
-      'nisn': '1234567893',
-      'tingkat': 'Berat',
-    },
-  ];
+  List<Map<String, dynamic>> _allSiswa = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSiswa();
+  }
+
+  Future<void> _fetchSiswa() async {
+    try {
+      final response = await supabase
+          .from('users')
+          .select()
+          .eq('role_id', 3)
+          .order('nama');
+
+      if (mounted) {
+        setState(() {
+          _allSiswa = List<Map<String, dynamic>>.from(response);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data siswa: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  String _capitalize(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> filteredSiswa = _allSiswa.where((siswa) {
-      final matchesSearch = siswa['namaSiswa']!
-          .toLowerCase()
-          .contains(_searchQuery.toLowerCase());
+    List<Map<String, dynamic>> filteredSiswa = _allSiswa.where((siswa) {
+      final namaSiswa = (siswa['nama'] ?? '').toString().toLowerCase();
+      final tingkat = (siswa['tardiness_level'] ?? 'Aman').toString().toLowerCase();
+
+      final matchesSearch = namaSiswa.contains(_searchQuery.toLowerCase());
       final matchesFilter = _selectedFilter == 'Semua' ||
-          siswa['tingkat']!.toLowerCase() == _selectedFilter.toLowerCase();
+          tingkat == _selectedFilter.toLowerCase();
       return matchesSearch && matchesFilter;
     }).toList();
 
@@ -72,26 +90,35 @@ class _DataSiswaViewState extends State<DataSiswaView> {
           const SizedBox(height: 16),
           _buildSearchAndFilter(),
           const SizedBox(height: 24),
-          ...filteredSiswa.map((siswa) => Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: _buildSiswaCard(
-                  context,
-                  namaSiswa: siswa['namaSiswa']!,
-                  kelas: siswa['kelas']!,
-                  nisn: siswa['nisn']!,
-                  tingkat: siswa['tingkat']!,
-                ),
-              )),
-          if (filteredSiswa.isEmpty)
+          if (_isLoading)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'Tidak ada siswa yang sesuai.',
-                  style: TextStyle(color: AppColors.outline),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else ...[
+            ...filteredSiswa.map((siswa) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: _buildSiswaCard(
+                    context,
+                    namaSiswa: siswa['nama'] ?? 'Tanpa Nama',
+                    kelas: siswa['class_room'] ?? '-',
+                    nisn: siswa['nisn'] ?? '-',
+                    tingkat: _capitalize(siswa['tardiness_level'] ?? 'Aman'),
+                  ),
+                )),
+            if (filteredSiswa.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text(
+                    'Tidak ada siswa yang sesuai.',
+                    style: TextStyle(color: AppColors.outline),
+                  ),
                 ),
               ),
-            ),
+          ],
         ],
       ),
     );
@@ -131,7 +158,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ['Semua', 'Aman', 'Ringan', 'Sedang', 'Berat'].map((filter) {
+            children: ['Semua', 'Aman', 'Ringan', 'Sedang', 'Berat', 'Pemanggilan Orang Tua'].map((filter) {
               final isSelected = _selectedFilter == filter;
               return Padding(
                 padding: const EdgeInsets.only(right: 8.0),
@@ -171,26 +198,23 @@ class _DataSiswaViewState extends State<DataSiswaView> {
   }) {
     Color tingkatColor;
     Color tingkatBgColor;
-    switch (tingkat.toLowerCase()) {
-      case 'aman':
-        tingkatColor = Colors.green[700]!;
-        tingkatBgColor = Colors.green[100]!;
-        break;
-      case 'ringan':
-        tingkatColor = AppColors.primary;
-        tingkatBgColor = AppColors.primaryContainer;
-        break;
-      case 'sedang':
-        tingkatColor = Colors.orange[800]!;
-        tingkatBgColor = Colors.orange[100]!;
-        break;
-      case 'berat':
-        tingkatColor = AppColors.error;
-        tingkatBgColor = AppColors.errorContainer;
-        break;
-      default:
-        tingkatColor = AppColors.outline;
-        tingkatBgColor = AppColors.surfaceVariant;
+    final lowercaseTingkat = tingkat.toLowerCase();
+
+    if (lowercaseTingkat == 'aman') {
+      tingkatColor = AppColors.outline;
+      tingkatBgColor = Colors.white;
+    } else if (lowercaseTingkat == 'ringan') {
+      tingkatColor = Colors.green[800]!;
+      tingkatBgColor = Colors.lightGreen[100]!;
+    } else if (lowercaseTingkat == 'sedang') {
+      tingkatColor = Colors.orange[800]!;
+      tingkatBgColor = Colors.orange[100]!;
+    } else if (lowercaseTingkat == 'berat' || lowercaseTingkat == 'pemanggilan orang tua') {
+      tingkatColor = AppColors.error;
+      tingkatBgColor = AppColors.errorContainer;
+    } else {
+      tingkatColor = AppColors.outline;
+      tingkatBgColor = AppColors.surfaceVariant;
     }
 
     return Container(
