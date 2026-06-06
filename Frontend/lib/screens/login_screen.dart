@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../core/auth_service.dart';
 import 'admin_dashboard_screen.dart';
+import 'guru_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,8 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         case 'Guru':
-          // TODO: Ganti dengan GuruDashboardScreen saat sudah dibuat
-          _showRoleNotImplemented(result.roleName);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const GuruDashboardScreen(),
+            ),
+          );
         case 'Siswa':
           // TODO: Ganti dengan SiswaDashboardScreen saat sudah dibuat
           _showRoleNotImplemented(result.roleName);

@@ -4,6 +4,8 @@ import 'core/supabase_config.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 
+import 'package:intl/date_symbol_data_local.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -14,6 +16,8 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+
+  await initializeDateFormatting('id_ID', null);
 
   runApp(const TertibSekolahApp());
 }

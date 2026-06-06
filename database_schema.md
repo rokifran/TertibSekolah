@@ -25,6 +25,10 @@ erDiagram
         string email
         string password
         int role_id FK
+        string class_room "Opsional, untuk Siswa"
+        int tardiness_count
+        int total_tardiness_minutes
+        string tardiness_level
         datetime created_at
     }
 
@@ -73,6 +77,10 @@ Tabel sentral untuk menyimpan data semua pengguna aplikasi (Siswa yang terlambat
 | `email` | VARCHAR(100) | Email (Unique) untuk keperluan Login |
 | `password` | VARCHAR(255) | Password (ter-hash) |
 | `role_id` | INT | Foreign Key mengarah ke tabel `roles` |
+| `class_room` | VARCHAR(50) | Kelas siswa (Bisa bernilai NULL untuk Guru/Admin) |
+| `tardiness_count` | INT | Total kali terlambat (Otomatis dihitung via Trigger) |
+| `total_tardiness_minutes` | INT | Total menit terlambat (Otomatis dihitung via Trigger) |
+| `tardiness_level` | VARCHAR(50) | 'aman', 'sedang', 'berat', 'pemanggilan orang tua' |
 | `created_at` | TIMESTAMP | Waktu akun dibuat |
 
 ### 3. Tabel `attendance` (Data Keterlambatan)
