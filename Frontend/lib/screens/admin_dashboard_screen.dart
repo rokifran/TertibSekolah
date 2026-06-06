@@ -677,6 +677,7 @@ class _UserRecord {
   final String nama;
   final String email;
   final String roleName;
+  final String? classRoom;
   final DateTime createdAt;
 
   const _UserRecord({
@@ -684,6 +685,7 @@ class _UserRecord {
     required this.nama,
     required this.email,
     required this.roleName,
+    this.classRoom,
     required this.createdAt,
   });
 }
@@ -730,7 +732,7 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
     try {
       final response = await supabase
           .from('users')
-          .select('id, nama, email, created_at, role_id, roles(role_name)')
+          .select('id, nama, email, class_room, created_at, role_id, roles(role_name)')
           .inFilter('role_id', [2, 3])
           .order('nama');
 
@@ -744,6 +746,7 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
           nama: row['nama'] as String? ?? '-',
           email: row['email'] as String? ?? '-',
           roleName: roleName,
+          classRoom: row['class_room'] as String?,
           createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
         );
         if (roleName == 'Guru') {
@@ -1186,6 +1189,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _classRoomController = TextEditingController();
   String _selectedRole = 'guru';
   bool _obscurePassword = true;
   bool _isSubmitting = false;
@@ -1195,6 +1199,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     _namaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _classRoomController.dispose();
     super.dispose();
   }
 
@@ -1202,12 +1207,25 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isSubmitting = true);
       try {
-        await supabase.functions.invoke('create-user', body: {
+        final body = {
           'nama': _namaController.text,
           'email': _emailController.text,
           'password': _passwordController.text,
           'role': _selectedRole,
-        });
+        };
+        if (_selectedRole == 'siswa') {
+          body['class_room'] = _classRoomController.text;
+        }
+        await supabase.functions.invoke('create-user', body: body);
+
+        // Fallback update if create-user function doesn't handle class_room
+        if (_selectedRole == 'siswa' && _classRoomController.text.isNotEmpty) {
+          try {
+            await supabase.from('users').update({
+              'class_room': _classRoomController.text,
+            }).eq('email', _emailController.text);
+          } catch (_) {}
+        }
 
         if (mounted) {
           widget.onUserAdded(_namaController.text, _selectedRole);
@@ -1360,6 +1378,26 @@ class _AddUserSheetState extends State<_AddUserSheet> {
               ],
             ),
 
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: _selectedRole == 'siswa'
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildLabel('Kelas (Opsional)'),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _classRoomController,
+                          hintText: 'Contoh: X IPA 1',
+                          keyboardType: TextInputType.text,
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+
             const SizedBox(height: 24),
 
             // Divider + Actions
@@ -1505,6 +1543,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _namaController;
   late final TextEditingController _emailController;
+  late final TextEditingController _classRoomController;
   late String _selectedRole;
   bool _isSubmitting = false;
 
@@ -1513,6 +1552,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
     super.initState();
     _namaController = TextEditingController(text: widget.user.nama);
     _emailController = TextEditingController(text: widget.user.email);
+    _classRoomController = TextEditingController(text: widget.user.classRoom ?? '');
     _selectedRole = widget.user.roleName.toLowerCase();
   }
 
@@ -1520,6 +1560,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
   void dispose() {
     _namaController.dispose();
     _emailController.dispose();
+    _classRoomController.dispose();
     super.dispose();
   }
 
@@ -1528,11 +1569,18 @@ class _EditUserSheetState extends State<_EditUserSheet> {
       setState(() => _isSubmitting = true);
       try {
         final roleId = _selectedRole == 'guru' ? 2 : 3;
-        await supabase.from('users').update({
+        final updates = <String, dynamic>{
           'nama': _namaController.text,
           'email': _emailController.text,
           'role_id': roleId,
-        }).eq('id', widget.user.id);
+        };
+        if (_selectedRole == 'siswa') {
+          updates['class_room'] = _classRoomController.text;
+        } else {
+          updates['class_room'] = null; // Clear if role changed to guru
+        }
+
+        await supabase.from('users').update(updates).eq('id', widget.user.id);
 
         if (mounted) {
           widget.onUserEdited();
@@ -1663,6 +1711,26 @@ class _EditUserSheetState extends State<_EditUserSheet> {
                   ),
                 ),
               ],
+            ),
+
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: _selectedRole == 'siswa'
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildLabel('Kelas (Opsional)'),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _classRoomController,
+                          hintText: 'Contoh: X IPA 1',
+                          keyboardType: TextInputType.text,
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
             ),
 
             const SizedBox(height: 24),

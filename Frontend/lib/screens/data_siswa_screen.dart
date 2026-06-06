@@ -158,7 +158,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ['Semua', 'Aman', 'Ringan', 'Sedang', 'Berat', 'Pemanggilan Orang Tua'].map((filter) {
+            children: ['Semua', 'Aman', 'Ringan', 'Sedang', 'Berat'].map((filter) {
               final isSelected = _selectedFilter == filter;
               return Padding(
                 padding: const EdgeInsets.only(right: 8.0),
@@ -172,9 +172,9 @@ class _DataSiswaViewState extends State<DataSiswaView> {
                   },
                   backgroundColor: AppColors.surface,
                   selectedColor: AppColors.primaryContainer,
-                  checkmarkColor: AppColors.primary,
+                  checkmarkColor: Colors.white,
                   labelStyle: TextStyle(
-                    color: isSelected ? AppColors.primary : AppColors.onBackground,
+                    color: isSelected ? Colors.white : AppColors.onBackground,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   side: BorderSide(
