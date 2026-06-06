@@ -42,7 +42,8 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
       if (!_siswaFocusNode.hasFocus) {
         _removeOverlay();
         // If user typed something but didn't select, revert to last selected
-        if (_selectedNama != null && _siswaSearchController.text != _selectedNama) {
+        if (_selectedNama != null &&
+            _siswaSearchController.text != _selectedNama) {
           _siswaSearchController.text = _selectedNama!;
         } else if (_selectedNama == null) {
           _siswaSearchController.clear();
@@ -137,7 +138,11 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                               padding: EdgeInsets.all(16),
                               child: Row(
                                 children: [
-                                  Icon(Icons.search_off, color: AppColors.outline, size: 20),
+                                  Icon(
+                                    Icons.search_off,
+                                    color: AppColors.outline,
+                                    size: 20,
+                                  ),
                                   SizedBox(width: 8),
                                   Text(
                                     'Siswa tidak ditemukan',
@@ -150,12 +155,15 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               shrinkWrap: true,
                               itemCount: list.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
+                              separatorBuilder: (_, _) =>
+                                  const Divider(height: 1, indent: 56),
                               itemBuilder: (context, index) {
                                 final siswa = list[index];
                                 final nama = siswa['nama'] ?? 'Tanpa Nama';
                                 final kelas = siswa['class_room'] ?? '-';
-                                final initial = nama.isNotEmpty ? nama[0].toUpperCase() : '?';
+                                final initial = nama.isNotEmpty
+                                    ? nama[0].toUpperCase()
+                                    : '?';
                                 return InkWell(
                                   onTap: () {
                                     _siswaSearchController.text = nama;
@@ -175,11 +183,13 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                                       children: [
                                         CircleAvatar(
                                           radius: 18,
-                                          backgroundColor: AppColors.primaryContainer,
+                                          backgroundColor:
+                                              AppColors.primaryContainer,
                                           child: Text(
                                             initial,
                                             style: const TextStyle(
-                                              color: AppColors.onPrimaryContainer,
+                                              color:
+                                                  AppColors.onPrimaryContainer,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
                                             ),
@@ -188,7 +198,8 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 nama,
@@ -208,8 +219,11 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                                             ],
                                           ),
                                         ),
-                                        const Icon(Icons.arrow_forward_ios,
-                                            size: 12, color: AppColors.outlineVariant),
+                                        const Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 12,
+                                          color: AppColors.outlineVariant,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -276,7 +290,7 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
       );
       return;
     }
-    
+
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSubmitting = true;
@@ -285,7 +299,7 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
       try {
         final reporterId = supabase.auth.currentUser?.id;
         final duration = int.parse(_waktuController.text);
-        
+
         String level = 'Ringan';
         if (duration > 15 && duration <= 30) {
           level = 'Sedang';
@@ -294,8 +308,10 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
         }
 
         final now = DateTime.now();
-        final waktuStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
-        final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+        final waktuStr =
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
+        final dateStr =
+            '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
         await supabase.from('attendance').insert({
           'user_id': _selectedUserId,
@@ -304,6 +320,7 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
           'waktu': waktuStr,
           'duration_minutes': duration,
           'level': level,
+          'task_status': 'pending_task',
         });
 
         if (!mounted) return;
@@ -413,25 +430,34 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                         _overlayEntry?.markNeedsBuild();
                       }
                     },
-                    decoration: _inputDecoration(
-                      _isLoadingSiswa ? 'Memuat data siswa...' : 'Cari nama siswa...',
-                      Icons.search,
-                    ).copyWith(
-                      suffixIcon: _isLoadingSiswa
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : _selectedUserId != null
-                              ? const Icon(Icons.check_circle_rounded,
-                                  color: AppColors.primary)
-                              : const Icon(Icons.keyboard_arrow_down_rounded,
-                                  color: AppColors.outline),
-                    ),
+                    decoration:
+                        _inputDecoration(
+                          _isLoadingSiswa
+                              ? 'Memuat data siswa...'
+                              : 'Cari nama siswa...',
+                          Icons.search,
+                        ).copyWith(
+                          suffixIcon: _isLoadingSiswa
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : _selectedUserId != null
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                )
+                              : const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: AppColors.outline,
+                                ),
+                        ),
                     validator: (value) {
                       if (_selectedUserId == null) {
                         return 'Silakan pilih siswa dari daftar saran';
@@ -447,7 +473,11 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
                     padding: const EdgeInsets.only(top: 8.0, left: 4.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.person_pin, size: 14, color: AppColors.primary),
+                        const Icon(
+                          Icons.person_pin,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Terpilih: $_selectedNama',
@@ -595,4 +625,3 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
     );
   }
 }
-

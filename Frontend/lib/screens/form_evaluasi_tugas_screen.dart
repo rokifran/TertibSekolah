@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
-
 class FormEvaluasiTugasScreen extends StatefulWidget {
-  final String idSiswa;
+  final String attendanceId;
   final String namaSiswa;
   final String tugas;
   final String kelas;
 
   const FormEvaluasiTugasScreen({
     super.key,
-    required this.idSiswa,
+    required this.attendanceId,
     required this.namaSiswa,
     required this.tugas,
     required this.kelas,
   });
 
   @override
-  State<FormEvaluasiTugasScreen> createState() => _FormEvaluasiTugasScreenState();
+  State<FormEvaluasiTugasScreen> createState() =>
+      _FormEvaluasiTugasScreenState();
 }
 
 class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
@@ -29,25 +30,26 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
 
   bool _isLoadingHistory = true;
   List<Map<String, dynamic>> _lateHistory = [];
+  String? _evidencePhotoUrl;
 
   @override
   void initState() {
     super.initState();
-    _fetchLateHistory();
+    _fetchTaskDetails();
   }
 
-  Future<void> _fetchLateHistory() async {
+  Future<void> _fetchTaskDetails() async {
     try {
       final response = await supabase
           .from('attendance')
           .select('*')
-          .eq('user_id', widget.idSiswa)
-          .order('tanggal', ascending: false)
-          .order('waktu', ascending: false);
+          .eq('id', widget.attendanceId)
+          .single();
 
       if (mounted) {
         setState(() {
-          _lateHistory = List<Map<String, dynamic>>.from(response);
+          _evidencePhotoUrl = response['evidence_photo'];
+          _lateHistory = [response];
           _isLoadingHistory = false;
         });
       }
@@ -56,9 +58,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
         setState(() {
           _isLoadingHistory = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat riwayat: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat tugas: $e')));
       }
     }
   }
@@ -171,33 +171,16 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.history, color: AppColors.primary),
+              const Icon(Icons.access_time, color: AppColors.primary),
               const SizedBox(width: 8),
               const Text(
-                'Riwayat Keterlambatan',
+                'Informasi Keterlambatan',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppColors.onBackground,
                 ),
               ),
-              const Spacer(),
-              if (!_isLoadingHistory && _lateHistory.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_lateHistory.length} Kali Terlambat',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -205,7 +188,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
             const Center(child: CircularProgressIndicator())
           else if (_lateHistory.isEmpty)
             const Text(
-              'Belum ada riwayat keterlambatan.',
+              'Data keterlambatan tidak ditemukan.',
               style: TextStyle(color: AppColors.outline),
             )
           else
@@ -305,15 +288,12 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           const SizedBox(height: 4),
           Text(
             widget.tugas,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.outline,
-            ),
+            style: const TextStyle(fontSize: 14, color: AppColors.outline),
           ),
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            height: 150,
+            height: 200,
             decoration: BoxDecoration(
               color: AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
@@ -322,24 +302,82 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                 style: BorderStyle.solid,
               ),
             ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.image_outlined, size: 48, color: AppColors.outline),
-                SizedBox(height: 8),
-                Text(
-                  'Lampiran Tugas (Foto/Dokumen)',
-                  style: TextStyle(
-                    color: AppColors.outline,
-                    fontSize: 14,
+            clipBehavior: Clip.antiAlias,
+            child: _evidencePhotoUrl != null
+                ? GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: const EdgeInsets.all(16),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              InteractiveViewer(
+                                child: Image.network(
+                                  _evidencePhotoUrl!,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    child: Image.network(
+                      _evidencePhotoUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Text('Gagal memuat gambar', style: TextStyle(color: AppColors.error)),
+                      ),
+                    ),
+                  )
+                : const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.image_outlined, size: 48, color: AppColors.outline),
+                      SizedBox(height: 8),
+                      Text(
+                        'Belum ada bukti yang diunggah',
+                        style: TextStyle(color: AppColors.outline, fontSize: 14),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () async {
+              if (_evidencePhotoUrl != null) {
+                final Uri url = Uri.parse(_evidencePhotoUrl!);
+                try {
+                  final bool success = await launchUrl(url, mode: LaunchMode.externalApplication);
+                  if (!success && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Tidak dapat membuka tautan')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tidak ada lampiran untuk diunduh')),
+                );
+              }
+            },
             icon: const Icon(Icons.download, size: 18),
             label: const Text('Unduh Lampiran'),
             style: OutlinedButton.styleFrom(
@@ -393,11 +431,15 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               fillColor: AppColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -416,29 +458,30 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _tingkatKelengkapan,
+            initialValue: _tingkatKelengkapan,
             decoration: InputDecoration(
               hintText: 'Pilih tingkat kelengkapan',
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.primary),
               ),
             ),
-            items: ['Baik', 'Cukup', 'Kurang'].map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
+            items: ['Lengkap', 'Tidak Lengkap'].map((String value) {
+              return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
             onChanged: (newValue) {
               setState(() {
@@ -457,18 +500,22 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _tingkatKesesuaian,
+            initialValue: _tingkatKesesuaian,
             decoration: InputDecoration(
               hintText: 'Pilih tingkat kesesuaian',
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -476,10 +523,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               ),
             ),
             items: ['Baik', 'Cukup', 'Kurang'].map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
+              return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
             onChanged: (newValue) {
               setState(() {
@@ -506,11 +550,15 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               fillColor: AppColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
+                borderSide: const BorderSide(
+                  color: AppColors.surfaceContainerHigh,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -528,18 +576,42 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.surfaceContainerHigh),
-        ),
+        border: Border(top: BorderSide(color: AppColors.surfaceContainerHigh)),
       ),
       child: SafeArea(
         child: FilledButton(
-          onPressed: () {
-            // Aksi simpan evaluasi
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Evaluasi berhasil disimpan')),
-            );
-            Navigator.pop(context);
+          onPressed: () async {
+            if (_scoreController.text.isEmpty || _tingkatKelengkapan == null || _tingkatKesesuaian == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Harap lengkapi semua form evaluasi')),
+              );
+              return;
+            }
+            try {
+              await supabase.from('evaluations').insert({
+                'attendance_id': int.parse(widget.attendanceId),
+                'evaluator_id': supabase.auth.currentUser!.id,
+                'score': int.parse(_scoreController.text),
+                'completeness': _tingkatKelengkapan,
+                'suitability': _tingkatKesesuaian,
+              });
+              await supabase.from('attendance').update({
+                'task_status': 'graded',
+              }).eq('id', int.parse(widget.attendanceId));
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Evaluasi berhasil disimpan')),
+                );
+                Navigator.pop(context);
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Gagal menyimpan evaluasi: $e')),
+                );
+              }
+            }
           },
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
@@ -551,10 +623,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           ),
           child: const Text(
             'Simpan Evaluasi',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
       ),

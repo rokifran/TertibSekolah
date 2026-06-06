@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
-void main() => runApp(const MaterialApp(home: Scaffold(body: SafeArea(child: ScratchAutocomplete()))));
+void main() => runApp(
+  const MaterialApp(
+    home: Scaffold(body: SafeArea(child: ScratchAutocomplete())),
+  ),
+);
 
 class ScratchAutocomplete extends StatefulWidget {
-  const ScratchAutocomplete({Key? key}) : super(key: key);
+  const ScratchAutocomplete({super.key});
   @override
   State<ScratchAutocomplete> createState() => _ScratchAutocompleteState();
 }
@@ -46,7 +50,8 @@ class _ScratchAutocompleteState extends State<ScratchAutocomplete> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       shrinkWrap: true,
                       itemCount: options.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (BuildContext context, int index) {
                         final option = options.elementAt(index);
                         return ListTile(

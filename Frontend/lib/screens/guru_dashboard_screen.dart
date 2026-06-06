@@ -6,6 +6,7 @@ import 'login_screen.dart';
 import 'input_keterlambatan_screen.dart';
 import 'evaluasi_tugas_screen.dart';
 import 'data_siswa_screen.dart';
+import '../main.dart';
 
 class GuruDashboardScreen extends StatefulWidget {
   const GuruDashboardScreen({super.key});
@@ -16,11 +17,76 @@ class GuruDashboardScreen extends StatefulWidget {
 
 class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   int _selectedIndex = 0;
+  int _pendingTaskCount = 0;
+  int _assignedCount = 0;
+  int _submittedCount = 0;
+  int _ringanCount = 0;
+  int _sedangCount = 0;
+  int _beratCount = 0;
+
+  List<Map<String, dynamic>> _recentActivities = [];
+  bool _isLoadingActivities = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    try {
+      final taskResponse = await supabase
+          .from('attendance')
+          .select('task_status')
+          .neq('task_status', 'graded');
+          
+      final studentResponse = await supabase
+          .from('users')
+          .select('tardiness_level')
+          .eq('role_id', 3);
+
+      final activityResponse = await supabase
+          .from('attendance')
+          .select('id, created_at, task_status, task_description, duration_minutes, level, users:users!attendance_user_id_fkey!inner(nama, class_room)')
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      if (mounted) {
+        setState(() {
+          final allTasks = List<Map<String, dynamic>>.from(taskResponse);
+          _pendingTaskCount = allTasks.where((d) => d['task_status'] == 'pending_task').length;
+          _assignedCount = allTasks.where((d) => d['task_status'] == 'assigned').length;
+          _submittedCount = allTasks.where((d) => d['task_status'] == 'submitted').length;
+
+          final allStudents = List<Map<String, dynamic>>.from(studentResponse);
+          _ringanCount = allStudents.where((d) => d['tardiness_level']?.toString().toLowerCase() == 'ringan').length;
+          _sedangCount = allStudents.where((d) => d['tardiness_level']?.toString().toLowerCase() == 'sedang').length;
+          _beratCount = allStudents.where((d) {
+            final level = d['tardiness_level']?.toString().toLowerCase() ?? '';
+            return level == 'berat' || level.contains('orang tua');
+          }).length;
+
+          _recentActivities = List<Map<String, dynamic>>.from(activityResponse);
+          _isLoadingActivities = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching dashboard data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingActivities = false;
+        });
+      }
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 0) {
+      _fetchDashboardData();
+    }
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
@@ -195,40 +261,24 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           const SizedBox(height: 16),
           SizedBox(
             height: 110,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              children: [
-                _buildActivityCard(
-                  icon: Icons.timer_off_outlined,
-                  iconColor: AppColors.onErrorContainer,
-                  iconBgColor: AppColors.errorContainer,
-                  title: 'Budi Santoso',
-                  className: '10-A',
-                  tardinessLevel: 'Sedang',
-                  description: 'Terlambat 15 menit - Macet',
-                  time: '07:15 AM',
-                ),
-                const SizedBox(width: 16),
-                _buildActivityCard(
-                  icon: Icons.check_circle_outline,
-                  iconColor: AppColors.onSecondaryContainer, // approx for on-secondary-fixed
-                  iconBgColor: AppColors.secondaryContainer, // approx for secondary-fixed
-                  title: 'Tugas Matematika',
-                  description: 'Dinilai untuk Kelas 10-B',
-                  time: 'Kemarin',
-                ),
-                const SizedBox(width: 16),
-                _buildActivityCard(
-                  icon: Icons.person_add_outlined,
-                  iconColor: AppColors.onSurface,
-                  iconBgColor: AppColors.surfaceVariant,
-                  title: 'Siswa Baru',
-                  description: 'Data ditambahkan ke 10-A',
-                  time: '2 hari lalu',
-                ),
-              ],
-            ),
+            child: _isLoadingActivities
+                ? const Center(child: CircularProgressIndicator())
+                : _recentActivities.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Belum ada aktivitas terkini',
+                          style: TextStyle(color: AppColors.outline),
+                        ),
+                      )
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        itemCount: _recentActivities.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 16),
+                        itemBuilder: (context, index) {
+                          return _buildActivityCardFromData(_recentActivities[index]);
+                        },
+                      ),
           ),
           const SizedBox(height: 32),
 
@@ -347,7 +397,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '3 perlu dinilai',
+              '$_pendingTaskCount perlu tugas\n$_assignedCount menunggu\n$_submittedCount dinilai',
               style: TextStyle(
                 color: AppColors.onSecondaryContainer.withValues(alpha: 0.8),
                 fontSize: 11,
@@ -395,9 +445,9 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Kelas 10-A',
-              style: TextStyle(
+            Text(
+              '$_ringanCount ringan\n$_sedangCount sedang\n$_beratCount berat',
+              style: const TextStyle(
                 color: AppColors.outline,
                 fontSize: 11,
               ),
@@ -524,6 +574,73 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildActivityCardFromData(Map<String, dynamic> data) {
+    final user = data['users'] as Map<String, dynamic>? ?? {};
+    final nama = user['nama']?.toString() ?? 'Siswa';
+    final className = user['class_room']?.toString();
+    final status = data['task_status']?.toString() ?? 'pending_task';
+    final duration = data['duration_minutes']?.toString() ?? '0';
+    final level = data['level']?.toString() ?? 'Ringan';
+    final createdAt = data['created_at']?.toString() ?? '';
+
+    // Parse time roughly
+    String timeAgo = '';
+    if (createdAt.isNotEmpty) {
+      final date = DateTime.tryParse(createdAt);
+      if (date != null) {
+        final diff = DateTime.now().difference(date);
+        if (diff.inDays > 0) {
+          timeAgo = '${diff.inDays} hari lalu';
+        } else if (diff.inHours > 0) {
+          timeAgo = '${diff.inHours} jam lalu';
+        } else if (diff.inMinutes > 0) {
+          timeAgo = '${diff.inMinutes} menit lalu';
+        } else {
+          timeAgo = 'Baru saja';
+        }
+      }
+    }
+
+    IconData icon;
+    Color iconColor;
+    Color iconBgColor;
+    String description;
+    String title = nama;
+
+    if (status == 'pending_task') {
+      icon = Icons.timer_off_outlined;
+      iconColor = AppColors.onErrorContainer;
+      iconBgColor = AppColors.errorContainer;
+      description = 'Terlambat $duration menit';
+    } else if (status == 'assigned') {
+      icon = Icons.assignment_outlined;
+      iconColor = AppColors.onSecondaryContainer;
+      iconBgColor = AppColors.secondaryContainer;
+      description = 'Diberikan tugas';
+    } else if (status == 'submitted') {
+      icon = Icons.upload_file_outlined;
+      iconColor = AppColors.onPrimaryContainer;
+      iconBgColor = AppColors.primaryContainer;
+      description = 'Mengumpulkan tugas';
+    } else { // graded or others
+      icon = Icons.check_circle_outline;
+      iconColor = AppColors.onTertiaryContainer;
+      iconBgColor = AppColors.tertiaryContainer;
+      description = 'Tugas dinilai';
+    }
+
+    return _buildActivityCard(
+      icon: icon,
+      iconColor: iconColor,
+      iconBgColor: iconBgColor,
+      title: title,
+      className: className,
+      tardinessLevel: status == 'pending_task' ? level : null,
+      description: description,
+      time: timeAgo,
     );
   }
 }

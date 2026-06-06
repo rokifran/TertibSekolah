@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../theme/app_colors.dart';
 import '../core/auth_service.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SiswaDashboardScreen extends StatefulWidget {
   final AuthResult authResult;
@@ -19,11 +23,33 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   int _totalKeterlambatan = 0;
   String _tardinessLevel = 'Aman';
   String _classRoom = '-';
+  List<Map<String, dynamic>> _tasks = [];
+  RealtimeChannel? _attendanceChannel;
 
   @override
   void initState() {
     super.initState();
     _fetchDashboardData();
+    _setupRealtime();
+  }
+
+  void _setupRealtime() {
+    _attendanceChannel = supabase
+        .channel('public:attendance:siswa_${widget.authResult.userId}')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'attendance',
+            callback: (payload) {
+              if (mounted) _fetchDashboardData();
+            })
+        .subscribe();
+  }
+
+  @override
+  void dispose() {
+    _attendanceChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _fetchDashboardData() async {
@@ -36,14 +62,16 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
       final attendanceRes = await supabase
           .from('attendance')
-          .select('id')
-          .eq('user_id', widget.authResult.userId);
+          .select('*, evaluations(*)')
+          .eq('user_id', widget.authResult.userId)
+          .order('created_at', ascending: false);
 
       if (mounted) {
         setState(() {
           _tardinessLevel = userRes['tardiness_level'] ?? 'Aman';
           _classRoom = userRes['class_room'] ?? '-';
-          _totalKeterlambatan = (attendanceRes as List).length;
+          _tasks = List<Map<String, dynamic>>.from(attendanceRes);
+          _totalKeterlambatan = _tasks.length;
           _isLoading = false;
         });
       }
@@ -121,6 +149,47 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     return nameParts[0][0].toUpperCase();
   }
 
+  Future<void> _uploadProof(int attendanceId) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final targetPath = pickedFile.path.replaceAll(RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false), '_compressed.jpg');
+      var result = await FlutterImageCompress.compressAndGetFile(
+        pickedFile.path,
+        targetPath,
+        quality: 60,
+      );
+
+      if (result == null) throw 'Gagal kompresi gambar';
+
+      final fileName = '${widget.authResult.userId}/${attendanceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await supabase.storage.from('task_proofs').upload(
+        fileName,
+        File(result.path),
+      );
+
+      final imageUrl = supabase.storage.from('task_proofs').getPublicUrl(fileName);
+
+      await supabase.from('attendance').update({
+        'evidence_photo': imageUrl,
+        'task_status': 'submitted',
+      }).eq('id', attendanceId);
+
+      _fetchDashboardData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bukti berhasil diunggah!')));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal unggah: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,24 +237,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Bukti'),
         ],
       ),
-      floatingActionButton: _selectedIndex == 1
-          ? FloatingActionButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fitur Tambah Foto belum tersedia'),
-                  ),
-                );
-              },
-              backgroundColor: AppColors.tertiary,
-              foregroundColor: AppColors.onTertiary,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.add_a_photo),
-            )
-          : null,
+      floatingActionButton: null,
     );
   }
 
@@ -449,6 +501,10 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   }
 
   Widget _buildPunishmentStatus() {
+    final int pendingTaskCount = _tasks.where((t) => t['task_status'] == 'pending_task').length;
+    final int assignedCount = _tasks.where((t) => t['task_status'] == 'assigned').length;
+    final int submittedCount = _tasks.where((t) => t['task_status'] == 'submitted').length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -462,101 +518,125 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.outlineVariant.withValues(alpha: 0.5),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 3,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.tertiaryContainer.withValues(
-                          alpha: 0.3,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.cleaning_services,
-                        color: AppColors.tertiary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Belum Ada Hukuman',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.onBackground,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            '-',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.outline,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 16,
-                      color: AppColors.outline,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Tuntas',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        _buildStatusRow(
+          icon: Icons.hourglass_empty,
+          color: Colors.orange[800]!,
+          title: 'Menunggu Tugas',
+          subtitle: 'Menunggu tugas dari guru',
+          count: pendingTaskCount,
+        ),
+        const SizedBox(height: 12),
+        _buildStatusRow(
+          icon: Icons.assignment_late,
+          color: AppColors.error,
+          title: 'Belum Dikerjakan',
+          subtitle: 'Perlu segera diselesaikan',
+          count: assignedCount,
+        ),
+        const SizedBox(height: 12),
+        _buildStatusRow(
+          icon: Icons.pending_actions,
+          color: AppColors.secondary,
+          title: 'Menunggu Penilaian',
+          subtitle: 'Tugas sudah diunggah',
+          count: submittedCount,
         ),
       ],
+    );
+  }
+
+  Widget _buildStatusRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onBackground,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: count > 0 ? color : AppColors.surfaceContainer,
+              borderRadius: BorderRadius.circular(100),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: count > 0 ? Colors.white : AppColors.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -589,190 +669,220 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   }
 
   Widget _buildBuktiBody(BuildContext context) {
-    // Mock URLs based on design
-    final List<String> mockPhotos = [
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAQejvaVdyuLrp-OZ1ty9twd93S-46Lm5d9xlhw44dSUe8k0NGCn3rEVkzRCyoXo12ovvEiiFSKJ-XUTLtJDIQRg8hrFlhWXlzuw19E4_YIMYie--6RTTJsyqj6NwAWlf_WcHZez2Yl-7JU7zgQG8Ssi-7j_m5bBFK6GZtcGnvV299UyoQDelwqNjFqnVpZtjiO4EEylKxJYftuELDxNrkojhpWFsn4kG21RP8K7KZqTKNyEsG5ZIVpRh242XzAGXv0dJ2mZsZvFaU',
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuB9hIj2IntwU7KMf936QU6XcA6myLTYRJpPRrLyh4zias86ODByoeSOHz837heHznHG8Y_2DpZbXiXVOQ7BsFtKfb1fJ-L1hGvTrTG__TAykt7cPgGwB_-bOUhyNkAkw5WxyFcmcZy4Fobm52215Dx4mVW7lgLsVCV9kmFDmVhL2TjH0nBpzogEQVMcQGUilu8huD0UuTZbzVUeQKXhwtSrwGytsHUwg7Jw8_c5vsDZk5sI6roHK4Xbm17m3jtKPLo9JkXXdP8VxYU',
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAPWvw3-EO_7NNRJnxvZqDSm70fxWfr7t3h8wZFrADUt3ZAWzKqap1Dsuv8lYfOaYJU8HlzJKg6ey03GFXvWQhsX0kI-cqwzY_h6osPUg5vhg6R_2c_rb6cm0sAkWGe9DdMANksU2WEy27D2R_79oUMltGPdCBE_hiPxVg5OkdFDtCEDusXdpq0sCXFV_2tiKh_MIsL4aHhpn0m4JetYYziihmF4flLxmqn9vB-118irWBTII4KhD1uAhIS5h-MV-8OD0c8uPrTyuY',
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAo531hh8dCHZ7fFy7MN0oPf4JfVcgcUm5ypmUeYHU6EGHaljZrWWPEKQ6T9MDT0TenO1abU4cnkWz2eG_ZJH2zT3Elhse0dZHddYuwY4nUEaKJCSjKy9IoFqSds7z43pNgcd28ISaIzeM5koqghFllpsaUbkHBcGMpShJ-k2XC49jXY9X_dwV7hSbMWwq0fcNsT6KVccA8ljiYRI1wRRxdoWNkw8N1vp_bunp9SkVor45x4QGgMSERb--CtP4OK0uU0JEwSaMC0Rs',
-    ];
+    final pendingTasks = _tasks.where((t) => t['task_status'] != null && t['task_status'] != 'graded').toList();
+    final completedTasks = _tasks.where((t) => t['task_status'] == 'graded').toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Text(
-                'Bukti Penyelesaian',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Manrope',
-                  color: AppColors.onBackground,
-                ),
-              ),
-            ],
+          const Text(
+            'Tugas Hukuman',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Manrope',
+              color: AppColors.onBackground,
+            ),
           ),
           const SizedBox(height: 32),
-          // Task Detail Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
+
+          if (pendingTasks.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'Tidak ada tugas yang menunggu penyelesaian.',
+                  style: TextStyle(color: AppColors.outline),
+                ),
+              ),
+            )
+          else
+            ...pendingTasks.map((task) => _buildTaskCard(task)),
+
+          const SizedBox(height: 32),
+          const Text(
+            'Riwayat Hukuman Selesai',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Manrope',
+              color: AppColors.onBackground,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          ),
+          const SizedBox(height: 16),
+          if (completedTasks.isEmpty)
+            const Text(
+              'Belum ada riwayat tugas.',
+              style: TextStyle(color: AppColors.outline),
+            )
+          else
+            ...completedTasks.map((task) => _buildTaskCard(task)),
+
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(Map<String, dynamic> task) {
+    final isPendingTask = task['task_status'] == 'pending_task';
+    final isSubmitted = task['task_status'] == 'submitted';
+    final isGraded = task['task_status'] == 'graded';
+    final taskDescription = isPendingTask ? 'Menunggu Tugas dari Guru' : (task['task_description'] ?? 'Tugas Kedisiplinan');
+    final tanggal = task['tanggal'] ?? '-';
+    
+    final evaluation = task['evaluations'] as Map<String, dynamic>?;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isGraded ? AppColors.primary : (isSubmitted ? AppColors.secondary : AppColors.error),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 6,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryVariant,
-                        borderRadius: BorderRadius.circular(4),
+                    Text(
+                      taskDescription,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Manrope',
+                        color: AppColors.onBackground,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Tugas Membersihkan Aula',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Manrope',
-                              color: AppColors.onBackground,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Diserahkan pada 12 Okt 2023, 14:30',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.outline,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Terkait Keterlambatan: $tanggal',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.outline,
+                        fontFamily: 'Inter',
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
+            ],
+          ),
+          
+          if (isGraded && evaluation != null) ...[
+            const SizedBox(height: 16),
+            const Divider(color: AppColors.surfaceContainerHigh),
+            const SizedBox(height: 16),
+            Row(
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: AppColors.outlineVariant),
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Text(
+                    '${evaluation['score'] ?? '-'}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.pending_actions,
-                        color: AppColors.primaryLight,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Status: Menunggu Evaluasi',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.onBackground,
-                          fontFamily: 'Inter',
-                        ),
-                      ),
+                      Text('Kelengkapan: ${evaluation['completeness'] ?? '-'}', style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                      const SizedBox(height: 4),
+                      Text('Kesesuaian: ${evaluation['suitability'] ?? '-'}', style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
                     ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 32),
-          // Gallery Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Galeri Dokumentasi',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Manrope',
-                  color: AppColors.onBackground,
+          ],
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isGraded ? Icons.check_circle : (isSubmitted ? Icons.pending_actions : (isPendingTask ? Icons.hourglass_empty : Icons.warning_amber)),
+                  color: isGraded ? AppColors.primary : (isSubmitted ? AppColors.secondary : (isPendingTask ? AppColors.outline : AppColors.error)),
+                  size: 20,
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${mockPhotos.length} Foto',
+                const SizedBox(width: 8),
+                Text(
+                  isGraded ? 'Status: Tuntas (Dinilai)' : (isSubmitted ? 'Status: Menunggu Evaluasi' : (isPendingTask ? 'Status: Menunggu Tugas' : 'Status: Menunggu Bukti')),
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.onSurfaceVariant,
+                    color: AppColors.onBackground,
+                    fontFamily: 'Inter',
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              ],
             ),
-            itemCount: mockPhotos.length,
-            itemBuilder: (context, index) {
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.surfaceContainer,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Image.network(
-                  mockPhotos[index],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: AppColors.outline,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
           ),
-          const SizedBox(height: 80), // Padding for FAB
+          if (!isPendingTask && !isSubmitted && !isGraded) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _uploadProof(task['id']),
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Unggah Bukti'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+          if (task['evidence_photo'] != null) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Bukti Terunggah:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                task['evidence_photo'],
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Text('Gagal memuat gambar', style: TextStyle(color: Colors.red)),
+              ),
+            ),
+          ],
         ],
       ),
     );

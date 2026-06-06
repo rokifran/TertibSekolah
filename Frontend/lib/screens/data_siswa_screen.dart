@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
+import 'detail_siswa_screen.dart';
 
 class DataSiswaView extends StatefulWidget {
   const DataSiswaView({super.key});
@@ -102,6 +103,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: _buildSiswaCard(
                     context,
+                    siswa: siswa,
                     namaSiswa: siswa['nama'] ?? 'Tanpa Nama',
                     kelas: siswa['class_room'] ?? '-',
                     nisn: siswa['nisn'] ?? '-',
@@ -191,6 +193,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
 
   Widget _buildSiswaCard(
     BuildContext context, {
+    required Map<String, dynamic> siswa,
     required String namaSiswa,
     required String kelas,
     required String nisn,
@@ -217,22 +220,32 @@ class _DataSiswaViewState extends State<DataSiswaView> {
       tingkatBgColor = AppColors.surfaceVariant;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.surfaceContainerHigh),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailSiswaScreen(siswa: siswa),
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.surfaceContainerHigh),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 48,
@@ -299,6 +312,6 @@ class _DataSiswaViewState extends State<DataSiswaView> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
