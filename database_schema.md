@@ -20,10 +20,9 @@ erDiagram
     }
 
     USERS {
-        int id PK
+        uuid id PK
         string nama
         string email
-        string password
         int role_id FK
         string class_room "Opsional, untuk Siswa"
         int tardiness_count
@@ -33,20 +32,23 @@ erDiagram
     }
 
     ATTENDANCE {
-        int id PK
-        int user_id FK "Siswa"
-        int reporter_id FK "Guru/Admin"
+        bigint id PK
+        uuid user_id FK "Siswa"
+        uuid reporter_id FK "Guru/Admin"
         date tanggal
         time waktu
         int duration_minutes "Durasi terlambat"
         string level "Ringan/Sedang/Berat"
+        text task_description "Tugas/Hukuman yang diberikan"
+        string task_status "Status: assigned, submitted, dll."
+        text evidence_photo "URL Foto Bukti Penyelesaian Tugas"
         datetime created_at
     }
 
     EVALUATIONS {
-        int id PK
-        int attendance_id FK
-        int evaluator_id FK "Guru/Admin"
+        bigint id PK
+        bigint attendance_id FK
+        uuid evaluator_id FK "Guru/Admin"
         int score
         string completeness
         string suitability
@@ -65,51 +67,53 @@ Tabel ini menyimpan jenis peran (Role) pengguna di dalam aplikasi untuk membedak
 | Kolom | Tipe Data | Keterangan |
 | :--- | :--- | :--- |
 | `id` | INT | Primary Key |
-| `role_name` | VARCHAR(50) | Contoh: 'Admin', 'Guru', 'Siswa' |
+| `role_name` | VARCHAR | Contoh: 'Admin', 'Guru', 'Siswa' (Unique) |
 
 ### 2. Tabel `users`
-Tabel sentral untuk menyimpan data semua pengguna aplikasi (Siswa yang terlambat, Guru yang mengevaluasi, dan Admin).
+Tabel sentral untuk menyimpan data semua pengguna aplikasi (Siswa yang terlambat, Guru yang mengevaluasi, dan Admin). Terhubung langsung dengan tabel `auth.users` bawaan Supabase.
 
 | Kolom | Tipe Data | Keterangan |
 | :--- | :--- | :--- |
-| `id` | INT | Primary Key |
-| `nama` | VARCHAR(100) | Nama lengkap pengguna |
-| `email` | VARCHAR(100) | Email (Unique) untuk keperluan Login |
-| `password` | VARCHAR(255) | Password (ter-hash) |
+| `id` | UUID | Primary Key, merujuk ke `auth.users.id` |
+| `nama` | VARCHAR | Nama lengkap pengguna |
+| `email` | VARCHAR | Email (Unique) untuk keperluan Login |
 | `role_id` | INT | Foreign Key mengarah ke tabel `roles` |
-| `class_room` | VARCHAR(50) | Kelas siswa (Bisa bernilai NULL untuk Guru/Admin) |
-| `tardiness_count` | INT | Total kali terlambat (Otomatis dihitung via Trigger) |
-| `total_tardiness_minutes` | INT | Total menit terlambat (Otomatis dihitung via Trigger) |
-| `tardiness_level` | VARCHAR(50) | 'aman', 'sedang', 'berat', 'pemanggilan orang tua' |
-| `created_at` | TIMESTAMP | Waktu akun dibuat |
+| `class_room` | VARCHAR | Kelas siswa (Bisa bernilai NULL untuk Guru/Admin) |
+| `tardiness_count` | INT | Total kali terlambat (Default: 0) |
+| `total_tardiness_minutes` | INT | Total menit terlambat (Default: 0) |
+| `tardiness_level` | VARCHAR | 'aman', 'sedang', 'berat', 'pemanggilan orang tua' (Default: 'aman') |
+| `created_at` | TIMESTAMPTZ | Waktu akun dibuat |
 
 ### 3. Tabel `attendance` (Data Keterlambatan)
-Tabel ini digunakan untuk mencatat data dari halaman **"Input Keterlambatan"**.
+Tabel ini digunakan untuk mencatat data dari halaman **"Input Keterlambatan"**, serta mengelola status tugas/hukuman yang diberikan ke siswa.
 
 | Kolom | Tipe Data | Keterangan |
 | :--- | :--- | :--- |
-| `id` | INT | Primary Key |
-| `user_id` | INT | FK ke `users` (Siswa yang terlambat) |
-| `reporter_id` | INT | FK ke `users` (Guru/Admin yang mencatat) - *Opsional* |
+| `id` | BIGINT | Primary Key |
+| `user_id` | UUID | FK ke `users` (Siswa yang terlambat) |
+| `reporter_id` | UUID | FK ke `users` (Guru/Admin yang mencatat) - *Opsional* |
 | `tanggal` | DATE | Tanggal kejadian terlambat |
 | `waktu` | TIME | Jam berapa siswa datang |
 | `duration_minutes` | INT | Durasi keterlambatan dalam menit |
-| `level` | VARCHAR(50) | Tingkat pelanggaran (misal: 'Ringan', 'Sedang', 'Berat') |
-| `created_at` | TIMESTAMP | Waktu data diinput |
+| `level` | VARCHAR | Tingkat pelanggaran (misal: 'Ringan', 'Sedang', 'Berat') |
+| `task_description` | TEXT | Tugas/Hukuman yang diberikan |
+| `task_status` | VARCHAR | Status tugas (Default: 'assigned') |
+| `evidence_photo` | TEXT | Path / URL ke file foto bukti penyelesaian yang diupload siswa |
+| `created_at` | TIMESTAMPTZ | Waktu data diinput |
 
 ### 4. Tabel `evaluations` (Data Evaluasi & Bukti)
-Tabel ini digunakan untuk mendukung fitur **"Bukti Penyelesaian"**, **"Evaluasi Tugas"**, dan **"Detail Evaluasi"**. Tabel ini berelasi 1-to-1 dengan data Keterlambatan.
+Tabel ini digunakan untuk mendukung fitur **"Evaluasi Tugas"**, dan **"Detail Evaluasi"**. Tabel ini berelasi 1-to-1 dengan data Keterlambatan.
 
 | Kolom | Tipe Data | Keterangan |
 | :--- | :--- | :--- |
-| `id` | INT | Primary Key |
-| `attendance_id` | INT | FK ke `attendance` (Keterlambatan mana yang dievaluasi) |
-| `evaluator_id` | INT | FK ke `users` (Guru/Admin yang memberi nilai) |
+| `id` | BIGINT | Primary Key |
+| `attendance_id` | BIGINT | FK ke `attendance` (Keterlambatan mana yang dievaluasi, Unique) |
+| `evaluator_id` | UUID | FK ke `users` (Guru/Admin yang memberi nilai) |
 | `score` | INT | Nilai evaluasi (misal: 0-100) |
-| `completeness` | VARCHAR(50) | Status kelengkapan tugas (misal: 'Lengkap', 'Tidak Lengkap') |
-| `suitability` | VARCHAR(50) | Kesesuaian tugas yang dikerjakan |
-| `evidence_photo` | VARCHAR(255) | Path / URL ke file foto bukti penyelesaian |
-| `created_at` | TIMESTAMP | Waktu evaluasi dilakukan |
+| `completeness` | VARCHAR | Status kelengkapan tugas ('Lengkap', 'Tidak Lengkap') |
+| `suitability` | VARCHAR | Kesesuaian tugas yang dikerjakan |
+| `evidence_photo` | VARCHAR | Path / URL ke file foto bukti penyelesaian |
+| `created_at` | TIMESTAMPTZ | Waktu evaluasi dilakukan |
 
 ---
 > [!TIP]

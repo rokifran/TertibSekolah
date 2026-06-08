@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
+import '../core/tardiness_service.dart';
 
 class InputKeterlambatanScreen extends StatefulWidget {
   const InputKeterlambatanScreen({super.key});
@@ -322,6 +323,9 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
           'level': level,
           'task_status': 'pending_task',
         });
+
+        // Update tardiness level based on pending task count
+        await TardinessService.updateStudentTardinessLevel(_selectedUserId!);
 
         if (!mounted) return;
 

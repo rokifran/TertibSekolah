@@ -227,7 +227,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
           MaterialPageRoute(
             builder: (context) => DetailSiswaScreen(siswa: siswa),
           ),
-        );
+        ).then((_) => _fetchSiswa());
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(

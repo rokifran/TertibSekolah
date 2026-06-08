@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
+import '../core/tardiness_service.dart';
+
 class FormEvaluasiTugasScreen extends StatefulWidget {
   final String attendanceId;
   final String namaSiswa;
@@ -58,7 +60,9 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
         setState(() {
           _isLoadingHistory = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat tugas: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal memuat tugas: $e')));
       }
     }
   }
@@ -324,7 +328,11 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                                 top: 0,
                                 right: 0,
                                 child: IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
                                   onPressed: () => Navigator.pop(context),
                                 ),
                               ),
@@ -336,19 +344,30 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                     child: Image.network(
                       _evidencePhotoUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Center(
-                        child: Text('Gagal memuat gambar', style: TextStyle(color: AppColors.error)),
-                      ),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(
+                            child: Text(
+                              'Gagal memuat gambar',
+                              style: TextStyle(color: AppColors.error),
+                            ),
+                          ),
                     ),
                   )
                 : const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.image_outlined, size: 48, color: AppColors.outline),
+                      Icon(
+                        Icons.image_outlined,
+                        size: 48,
+                        color: AppColors.outline,
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'Belum ada bukti yang diunggah',
-                        style: TextStyle(color: AppColors.outline, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.outline,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -359,22 +378,29 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               if (_evidencePhotoUrl != null) {
                 final Uri url = Uri.parse(_evidencePhotoUrl!);
                 try {
-                  final bool success = await launchUrl(url, mode: LaunchMode.externalApplication);
+                  final bool success = await launchUrl(
+                    url,
+                    mode: LaunchMode.externalApplication,
+                  );
                   if (!success && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tidak dapat membuka tautan')),
+                      const SnackBar(
+                        content: Text('Tidak dapat membuka tautan'),
+                      ),
                     );
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('Error: $e')));
                   }
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tidak ada lampiran untuk diunduh')),
+                  const SnackBar(
+                    content: Text('Tidak ada lampiran untuk diunduh'),
+                  ),
                 );
               }
             },
@@ -581,29 +607,88 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       child: SafeArea(
         child: FilledButton(
           onPressed: () async {
-            if (_scoreController.text.isEmpty || _tingkatKelengkapan == null || _tingkatKesesuaian == null) {
+            if (_scoreController.text.isEmpty ||
+                _tingkatKelengkapan == null ||
+                _tingkatKesesuaian == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Harap lengkapi semua form evaluasi')),
+                const SnackBar(
+                  content: Text('Harap lengkapi semua form evaluasi'),
+                ),
               );
               return;
             }
+
             try {
-              await supabase.from('evaluations').insert({
-                'attendance_id': int.parse(widget.attendanceId),
-                'evaluator_id': supabase.auth.currentUser!.id,
-                'score': int.parse(_scoreController.text),
-                'completeness': _tingkatKelengkapan,
-                'suitability': _tingkatKesesuaian,
-              });
-              await supabase.from('attendance').update({
-                'task_status': 'graded',
-              }).eq('id', int.parse(widget.attendanceId));
-              
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Evaluasi berhasil disimpan')),
-                );
-                Navigator.pop(context);
+              int score = int.tryParse(_scoreController.text) ?? 0;
+              bool isLulus = false;
+
+              if (score >= 75) {
+                if (_tingkatKelengkapan == 'Lengkap') {
+                  if (_tingkatKesesuaian != 'Kurang') {
+                    isLulus = true;
+                  }
+                }
+              }
+
+              if (isLulus) {
+                try {
+                  await supabase
+                      .from('evaluations')
+                      .delete()
+                      .eq('attendance_id', int.parse(widget.attendanceId));
+                } catch (_) {}
+
+                await supabase.from('evaluations').insert({
+                  'attendance_id': int.parse(widget.attendanceId),
+                  'evaluator_id': supabase.auth.currentUser!.id,
+                  'score': score,
+                  'completeness': _tingkatKelengkapan,
+                  'suitability': _tingkatKesesuaian,
+                });
+
+                await supabase
+                    .from('attendance')
+                    .update({'task_status': 'graded'})
+                    .eq('id', int.parse(widget.attendanceId));
+
+                if (_lateHistory.isNotEmpty &&
+                    _lateHistory[0]['user_id'] != null) {
+                  await TardinessService.updateStudentTardinessLevel(
+                    _lateHistory[0]['user_id'],
+                  );
+                }
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Siswa LULUS. Status menjadi Tuntas.'),
+                    ),
+                  );
+                  Navigator.pop(context);
+                }
+              } else {
+                try {
+                  await supabase
+                      .from('evaluations')
+                      .delete()
+                      .eq('attendance_id', int.parse(widget.attendanceId));
+                } catch (_) {}
+
+                await supabase
+                    .from('attendance')
+                    .update({'task_status': 'assigned', 'evidence_photo': null})
+                    .eq('id', int.parse(widget.attendanceId));
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Siswa TIDAK LULUS. Siswa harus mengerjakan ulang.',
+                      ),
+                    ),
+                  );
+                  Navigator.pop(context);
+                }
               }
             } catch (e) {
               if (mounted) {

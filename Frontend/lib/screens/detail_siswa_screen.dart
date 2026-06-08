@@ -19,9 +19,12 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
   int _assignedCount = 0;
   int _submittedCount = 0;
 
+  String _tardinessLevel = 'Aman';
+
   @override
   void initState() {
     super.initState();
+    _tardinessLevel = widget.siswa['tardiness_level'] ?? 'Aman';
     _fetchDetailSiswa();
   }
 
@@ -34,6 +37,12 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
           .order('tanggal', ascending: false)
           .order('waktu', ascending: false);
 
+      final userResponse = await supabase
+          .from('users')
+          .select('tardiness_level')
+          .eq('id', widget.siswa['id'])
+          .single();
+
       if (mounted) {
         setState(() {
           _attendanceHistory = List<Map<String, dynamic>>.from(response);
@@ -41,6 +50,10 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
           _pendingTaskCount = _attendanceHistory.where((e) => e['task_status'] == 'pending_task').length;
           _assignedCount = _attendanceHistory.where((e) => e['task_status'] == 'assigned').length;
           _submittedCount = _attendanceHistory.where((e) => e['task_status'] == 'submitted').length;
+
+          if (userResponse != null && userResponse['tardiness_level'] != null) {
+            _tardinessLevel = userResponse['tardiness_level'];
+          }
 
           _isLoading = false;
         });
@@ -67,7 +80,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
     final namaSiswa = widget.siswa['nama'] ?? 'Tanpa Nama';
     final kelas = widget.siswa['class_room'] ?? '-';
     final nisn = widget.siswa['nisn'] ?? '-';
-    final tingkat = _capitalize(widget.siswa['tardiness_level'] ?? 'Aman');
+    final tingkat = _capitalize(_tardinessLevel);
 
     return Scaffold(
       backgroundColor: AppColors.background,
