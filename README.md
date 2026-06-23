@@ -2,6 +2,10 @@
 
 Aplikasi **Tepat Waktu (Tertib Sekolah)** adalah platform manajemen kedisiplinan sekolah berbasis mobile (Flutter) yang terintegrasi dengan backend **Supabase**. Aplikasi ini dirancang untuk mencatat data keterlambatan siswa, memberikan sanksi/tugas edukatif secara otomatis berdasarkan tingkat keterlambatan, serta melakukan evaluasi terhadap bukti penyelesaian tugas yang diunggah oleh siswa secara real-time.
 
+Proyek ini terbagi menjadi dua bagian utama:
+1. **Frontend**: Aplikasi mobile Flutter (`/Frontend`).
+2. **Backend**: Database PostgreSQL dan layanan cloud Supabase (skema tabel didefinisikan dalam `database_schema.md` dan `schema.json`).
+
 ---
 
 ## 🏗️ 1. Arsitektur Aplikasi
@@ -12,7 +16,7 @@ Aplikasi ini menggunakan arsitektur **Client-Server** modern dengan membagi tang
 
 ```mermaid
 graph TD
-    subgraph Frontend [Client: Flutter App]
+    subgraph Frontend [Client: Flutter App - /Frontend]
         UI[UI Screens & Widgets]
         Theme[Theme / Styling]
         Service[Core Services: Auth & Tardiness]
@@ -275,29 +279,24 @@ Menyimpan hasil penilaian tugas/sanksi oleh Guru/Admin.
 
 ## 📁 5. Struktur Direktori Project (Frontend)
 
-Struktur kode sumber di dalam folder `lib/` disusun secara modular dan clean:
+Struktur kode sumber di dalam folder `/Frontend/lib/` disusun secara modular dan clean:
 
-```
-lib/
-├── core/
-│   ├── auth_service.dart          # Penanganan autentikasi (login/logout) & RPC profil
-│   ├── supabase_config.dart      # Validasi & pengelolaan variabel lingkungan Supabase
-│   └── tardiness_service.dart     # Service untuk memicu kalkulasi tardiness level via RPC
-├── screens/
-│   ├── admin_dashboard_screen.dart # Dashboard khusus Admin (manajemen user, stats)
-│   ├── guru_dashboard_screen.dart  # Dashboard Guru (navigasi input keterlambatan, evaluasi)
-│   ├── siswa_dashboard_screen.dart # Dashboard Siswa (melihat status, upload bukti tugas)
-│   ├── input_keterlambatan_screen.dart # Form input sanksi & sanksi rekomendasi otomatis
-│   ├── evaluasi_tugas_screen.dart  # Daftar tugas siswa yang masuk kategori 'submitted'
-│   ├── form_evaluasi_tugas_screen.dart # Form penilaian & validasi bukti tugas siswa
-│   ├── data_siswa_screen.dart      # Halaman daftar ringkasan kedisiplinan seluruh siswa
-│   ├── detail_siswa_screen.dart    # Rekam medis keterlambatan & daftar tugas per siswa
-│   └── login_screen.dart           # Halaman login dengan validasi kredensial
-├── theme/
-│   ├── app_colors.dart            # Palet warna custom (sistem Material Design bertema Hijau)
-│   └── app_theme.dart             # Konfigurasi ThemeData global (Google Fonts Inter/Manrope)
-└── main.dart                      # Entry point aplikasi Flutter (inisialisasi Supabase & run)
-```
+- [lib/core/](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/core) — Berisi kode-kode logika internal dan penanganan API / Supabase.
+  - [auth_service.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/core/auth_service.dart): Autentikasi Supabase & pemanggilan RPC profile.
+  - [tardiness_service.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/core/tardiness_service.dart): Memperbarui status pelanggaran siswa via RPC database.
+  - [supabase_config.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/core/supabase_config.dart): Validasi environment variable.
+- [lib/screens/](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens) — Halaman interface untuk masing-masing user role.
+  - [login_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/login_screen.dart): Form login user.
+  - [admin_dashboard_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/admin_dashboard_screen.dart): Dashboard khusus administrator.
+  - [guru_dashboard_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/guru_dashboard_screen.dart): Dashboard perekaman keterlambatan & daftar evaluasi.
+  - [siswa_dashboard_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/siswa_dashboard_screen.dart): Laporan sanksi & form upload foto bukti siswa.
+  - [input_keterlambatan_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/input_keterlambatan_screen.dart): Form perekaman keterlambatan.
+  - [evaluasi_tugas_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/evaluasi_tugas_screen.dart) & [form_evaluasi_tugas_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/form_evaluasi_tugas_screen.dart): Halaman peninjauan bukti tugas siswa.
+  - [data_siswa_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/data_siswa_screen.dart) & [detail_siswa_screen.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/screens/detail_siswa_screen.dart): Monitoring statistik kedisiplinan murid.
+- [lib/theme/](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/theme) — Konfigurasi styling & warna visual.
+  - [app_colors.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/theme/app_colors.dart): Palet warna utama.
+  - [app_theme.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/theme/app_theme.dart): Modifikasi TextTheme & font.
+- [main.dart](file:///mnt/data/Project/ProjectJurnal/TertibSekolah/Frontend/lib/main.dart) — Titik masuk utama aplikasi.
 
 ---
 
