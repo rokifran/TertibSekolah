@@ -37,12 +37,13 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     _attendanceChannel = supabase
         .channel('public:attendance:siswa_${widget.authResult.userId}')
         .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'attendance',
-            callback: (payload) {
-              if (mounted) _fetchDashboardData();
-            })
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'attendance',
+          callback: (payload) {
+            if (mounted) _fetchDashboardData();
+          },
+        )
         .subscribe();
   }
 
@@ -156,7 +157,10 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final targetPath = pickedFile.path.replaceAll(RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false), '_compressed.jpg');
+      final targetPath = pickedFile.path.replaceAll(
+        RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false),
+        '_compressed.jpg',
+      );
       var result = await FlutterImageCompress.compressAndGetFile(
         pickedFile.path,
         targetPath,
@@ -165,27 +169,33 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
       if (result == null) throw 'Gagal kompresi gambar';
 
-      final fileName = '${widget.authResult.userId}/${attendanceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await supabase.storage.from('task_proofs').upload(
-        fileName,
-        File(result.path),
-      );
+      final fileName =
+          '${widget.authResult.userId}/${attendanceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await supabase.storage
+          .from('task_proofs')
+          .upload(fileName, File(result.path));
 
-      final imageUrl = supabase.storage.from('task_proofs').getPublicUrl(fileName);
+      final imageUrl = supabase.storage
+          .from('task_proofs')
+          .getPublicUrl(fileName);
 
-      await supabase.from('attendance').update({
-        'evidence_photo': imageUrl,
-        'task_status': 'submitted',
-      }).eq('id', attendanceId);
+      await supabase
+          .from('attendance')
+          .update({'evidence_photo': imageUrl, 'task_status': 'submitted'})
+          .eq('id', attendanceId);
 
       _fetchDashboardData();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bukti berhasil diunggah!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bukti berhasil diunggah!')),
+        );
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal unggah: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal unggah: $e')));
       }
     }
   }
@@ -501,9 +511,15 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   }
 
   Widget _buildPunishmentStatus() {
-    final int pendingTaskCount = _tasks.where((t) => t['task_status'] == 'pending_task').length;
-    final int assignedCount = _tasks.where((t) => t['task_status'] == 'assigned').length;
-    final int submittedCount = _tasks.where((t) => t['task_status'] == 'submitted').length;
+    final int pendingTaskCount = _tasks
+        .where((t) => t['task_status'] == 'pending_task')
+        .length;
+    final int assignedCount = _tasks
+        .where((t) => t['task_status'] == 'assigned')
+        .length;
+    final int submittedCount = _tasks
+        .where((t) => t['task_status'] == 'submitted')
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,10 +596,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                  ),
+                  child: Icon(icon, color: color),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -613,10 +626,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: count > 0 ? color : AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(100),
@@ -669,8 +679,12 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   }
 
   Widget _buildBuktiBody(BuildContext context) {
-    final pendingTasks = _tasks.where((t) => t['task_status'] != null && t['task_status'] != 'graded').toList();
-    final completedTasks = _tasks.where((t) => t['task_status'] == 'graded').toList();
+    final pendingTasks = _tasks
+        .where((t) => t['task_status'] != null && t['task_status'] != 'graded')
+        .toList();
+    final completedTasks = _tasks
+        .where((t) => t['task_status'] == 'graded')
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -730,11 +744,13 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     final isPendingTask = task['task_status'] == 'pending_task';
     final isSubmitted = task['task_status'] == 'submitted';
     final isGraded = task['task_status'] == 'graded';
-    final taskDescription = isPendingTask ? 'Menunggu Tugas dari Guru' : (task['task_description'] ?? 'Tugas Kedisiplinan');
+    final taskDescription = isPendingTask
+        ? 'Menunggu Tugas dari Guru'
+        : (task['task_description'] ?? 'Tugas Kedisiplinan');
     final tanggal = task['tanggal'] ?? '-';
-    
+
     final evaluation = task['evaluations'] as Map<String, dynamic>?;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -751,7 +767,9 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                 width: 6,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: isGraded ? AppColors.primary : (isSubmitted ? AppColors.secondary : AppColors.error),
+                  color: isGraded
+                      ? AppColors.primary
+                      : (isSubmitted ? AppColors.secondary : AppColors.error),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -783,7 +801,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ),
             ],
           ),
-          
+
           if (isGraded && evaluation != null) ...[
             const SizedBox(height: 16),
             const Divider(color: AppColors.surfaceContainerHigh),
@@ -810,9 +828,21 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Kelengkapan: ${evaluation['completeness'] ?? '-'}', style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                      Text(
+                        'Kelengkapan: ${evaluation['completeness'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Kesesuaian: ${evaluation['suitability'] ?? '-'}', style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant)),
+                      Text(
+                        'Kesesuaian: ${evaluation['suitability'] ?? '-'}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -821,10 +851,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           ],
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(100),
@@ -834,13 +861,31 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  isGraded ? Icons.check_circle : (isSubmitted ? Icons.pending_actions : (isPendingTask ? Icons.hourglass_empty : Icons.warning_amber)),
-                  color: isGraded ? AppColors.primary : (isSubmitted ? AppColors.secondary : (isPendingTask ? AppColors.outline : AppColors.error)),
+                  isGraded
+                      ? Icons.check_circle
+                      : (isSubmitted
+                            ? Icons.pending_actions
+                            : (isPendingTask
+                                  ? Icons.hourglass_empty
+                                  : Icons.warning_amber)),
+                  color: isGraded
+                      ? AppColors.primary
+                      : (isSubmitted
+                            ? AppColors.secondary
+                            : (isPendingTask
+                                  ? AppColors.outline
+                                  : AppColors.error)),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isGraded ? 'Status: Tuntas (Dinilai)' : (isSubmitted ? 'Status: Menunggu Evaluasi' : (isPendingTask ? 'Status: Menunggu Tugas' : 'Status: Menunggu Bukti')),
+                  isGraded
+                      ? 'Status: Tuntas (Dinilai)'
+                      : (isSubmitted
+                            ? 'Status: Menunggu Evaluasi'
+                            : (isPendingTask
+                                  ? 'Status: Menunggu Tugas'
+                                  : 'Status: Menunggu Bukti')),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -879,7 +924,10 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Text('Gagal memuat gambar', style: TextStyle(color: Colors.red)),
+                errorBuilder: (_, _, _) => const Text(
+                  'Gagal memuat gambar',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ),
           ],

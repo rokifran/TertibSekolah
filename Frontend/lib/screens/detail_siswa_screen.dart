@@ -46,12 +46,18 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
       if (mounted) {
         setState(() {
           _attendanceHistory = List<Map<String, dynamic>>.from(response);
-          
-          _pendingTaskCount = _attendanceHistory.where((e) => e['task_status'] == 'pending_task').length;
-          _assignedCount = _attendanceHistory.where((e) => e['task_status'] == 'assigned').length;
-          _submittedCount = _attendanceHistory.where((e) => e['task_status'] == 'submitted').length;
 
-          if (userResponse != null && userResponse['tardiness_level'] != null) {
+          _pendingTaskCount = _attendanceHistory
+              .where((e) => e['task_status'] == 'pending_task')
+              .length;
+          _assignedCount = _attendanceHistory
+              .where((e) => e['task_status'] == 'assigned')
+              .length;
+          _submittedCount = _attendanceHistory
+              .where((e) => e['task_status'] == 'submitted')
+              .length;
+
+          if (userResponse['tardiness_level'] != null) {
             _tardinessLevel = userResponse['tardiness_level'];
           }
 
@@ -116,7 +122,12 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
     );
   }
 
-  Widget _buildStudentInfo(String namaSiswa, String kelas, String nisn, String tingkat) {
+  Widget _buildStudentInfo(
+    String namaSiswa,
+    String kelas,
+    String nisn,
+    String tingkat,
+  ) {
     Color tingkatColor;
     Color tingkatBgColor;
     final lowercaseTingkat = tingkat.toLowerCase();
@@ -130,7 +141,8 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
     } else if (lowercaseTingkat == 'sedang') {
       tingkatColor = Colors.orange[800]!;
       tingkatBgColor = Colors.orange[100]!;
-    } else if (lowercaseTingkat == 'berat' || lowercaseTingkat == 'pemanggilan orang tua') {
+    } else if (lowercaseTingkat == 'berat' ||
+        lowercaseTingkat == 'pemanggilan orang tua') {
       tingkatColor = AppColors.error;
       tingkatBgColor = AppColors.errorContainer;
     } else {
@@ -201,11 +213,17 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Kelas: $kelas',
-                  style: const TextStyle(fontSize: 14, color: AppColors.outline),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.outline,
+                  ),
                 ),
                 Text(
                   'NISN: $nisn',
-                  style: const TextStyle(fontSize: 14, color: AppColors.outline),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.outline,
+                  ),
                 ),
               ],
             ),
@@ -270,7 +288,12 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
     );
   }
 
-  Widget _buildStatusCard(String title, String count, Color color, Color bgColor) {
+  Widget _buildStatusCard(
+    String title,
+    String count,
+    Color color,
+    Color bgColor,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
@@ -328,7 +351,10 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               const Spacer(),
               if (_attendanceHistory.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.errorContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -357,11 +383,15 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               final String level = history['level'] ?? '-';
               String statusLabel = '';
               String taskStatus = history['task_status'] ?? 'pending_task';
-              
-              if (taskStatus == 'pending_task') statusLabel = 'Perlu Tugas';
-              else if (taskStatus == 'assigned') statusLabel = 'Menunggu Bukti';
-              else if (taskStatus == 'submitted') statusLabel = 'Perlu Dinilai';
-              else if (taskStatus == 'graded') statusLabel = 'Tuntas';
+
+              if (taskStatus == 'pending_task') {
+                statusLabel = 'Perlu Tugas';
+              } else if (taskStatus == 'assigned')
+                statusLabel = 'Menunggu Bukti';
+              else if (taskStatus == 'submitted')
+                statusLabel = 'Perlu Dinilai';
+              else if (taskStatus == 'graded')
+                statusLabel = 'Tuntas';
 
               return Column(
                 children: [
@@ -381,7 +411,12 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
     );
   }
 
-  Widget _buildHistoryItem(String date, String status, String reason, String taskStatusLabel) {
+  Widget _buildHistoryItem(
+    String date,
+    String status,
+    String reason,
+    String taskStatusLabel,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -417,7 +452,9 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: taskStatusLabel == 'Tuntas' ? Colors.green : AppColors.primary,
+                        color: taskStatusLabel == 'Tuntas'
+                            ? Colors.green
+                            : AppColors.primary,
                       ),
                     ),
                   ],
