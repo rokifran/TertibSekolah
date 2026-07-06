@@ -747,7 +747,13 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
             ? '${roleRaw[0].toUpperCase()}${roleRaw.substring(1)}'
             : 'Unknown';
             
-        final detail = row['detail_siswa'] as Map<String, dynamic>?;
+        final dynamic rawDetail = row['detail_siswa'];
+        Map<String, dynamic>? detail;
+        if (rawDetail is List) {
+          detail = rawDetail.isNotEmpty ? rawDetail.first as Map<String, dynamic> : null;
+        } else if (rawDetail is Map<String, dynamic>) {
+          detail = rawDetail;
+        }
 
         final record = _UserRecord(
           id: row['id'] as String,
