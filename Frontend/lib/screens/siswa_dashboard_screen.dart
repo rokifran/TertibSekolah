@@ -177,13 +177,9 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           .from('task_proofs')
           .upload(fileName, File(result.path));
 
-      final imageUrl = supabase.storage
-          .from('task_proofs')
-          .getPublicUrl(fileName);
-
       await supabase.from('bukti_evaluasi').insert({
         'terlambat_id': attendanceId,
-        'photo_url': imageUrl,
+        'photo_path': fileName,
       });
 
       await supabase
@@ -919,7 +915,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ),
             ),
           ],
-          if (evaluation != null && evaluation['photo_url'] != null) ...[
+          if (evaluation != null && evaluation['photo_path'] != null) ...[
             const SizedBox(height: 16),
             const Text(
               'Bukti Terunggah:',
@@ -929,7 +925,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                evaluation['photo_url'],
+                supabase.storage.from('task_proofs').getPublicUrl(evaluation['photo_path']),
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,

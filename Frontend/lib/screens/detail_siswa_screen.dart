@@ -35,7 +35,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
           .select('*')
           .eq('user_id', widget.siswa['id'])
           .order('tanggal_terlambat', ascending: false)
-          .order('waktu_datang', ascending: false);
+          .order('created_at', ascending: false);
 
       if (mounted) {
         setState(() {

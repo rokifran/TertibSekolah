@@ -48,9 +48,11 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
         setState(() {
           final buktiList = response['bukti_evaluasi'];
           if (buktiList is List && buktiList.isNotEmpty) {
-            _evidencePhotoUrl = buktiList[0]['photo_url'];
+            final path = buktiList[0]['photo_path'];
+            _evidencePhotoUrl = path != null ? supabase.storage.from('task_proofs').getPublicUrl(path) : null;
           } else if (buktiList is Map) {
-            _evidencePhotoUrl = buktiList['photo_url'];
+            final path = buktiList['photo_path'];
+            _evidencePhotoUrl = path != null ? supabase.storage.from('task_proofs').getPublicUrl(path) : null;
           }
           _lateHistory = [response];
           _isLoadingHistory = false;

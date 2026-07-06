@@ -305,7 +305,6 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
       });
 
       try {
-        final reporterId = supabase.auth.currentUser?.id;
         final duration = int.parse(_waktuController.text);
 
         String tugasHukuman = 'Tugas Ringan';
@@ -315,20 +314,16 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
           tugasHukuman = 'Tugas Berat';
         }
 
-        final now = DateTime.now();
-        final waktuStr =
-            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
         final dateStr =
             '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
         await supabase.from('terlambat').insert({
           'user_id': _selectedUserId,
-          'pencatat_id': reporterId,
           'tanggal_terlambat': dateStr,
-          'waktu_datang': waktuStr,
           'durasi_menit': duration,
           'tugas_hukuman': tugasHukuman,
           'status_evaluasi': 'menunggu',
+          'alasan': _alasanController.text.trim().isEmpty ? null : _alasanController.text.trim(),
         });
 
         // Update tardiness level based on pending task count
