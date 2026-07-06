@@ -26,14 +26,24 @@ class _DataSiswaViewState extends State<DataSiswaView> {
   Future<void> _fetchSiswa() async {
     try {
       final response = await supabase
-          .from('users')
-          .select()
-          .eq('role_id', 3)
-          .order('nama');
+          .from('profiles')
+          .select('id, full_name, email, detail_siswa(kelas, nisn, status_disiplin)')
+          .eq('role', 'siswa')
+          .order('full_name');
 
       if (mounted) {
         setState(() {
-          _allSiswa = List<Map<String, dynamic>>.from(response);
+          _allSiswa = (response as List<dynamic>).map((row) {
+            final detail = row['detail_siswa'] as Map<String, dynamic>?;
+            return {
+              'id': row['id'],
+              'nama': row['full_name'],
+              'email': row['email'],
+              'class_room': detail?['kelas'],
+              'nisn': detail?['nisn'],
+              'tardiness_level': detail?['status_disiplin'],
+            };
+          }).toList();
           _isLoading = false;
         });
       }

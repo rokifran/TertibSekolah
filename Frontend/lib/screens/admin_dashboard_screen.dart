@@ -231,15 +231,15 @@ class _DashboardBodyState extends State<_DashboardBody> {
     try {
       // supabase_flutter v2: use .count() chained method, returns PostgrestCountResponse
       final guruRes = await supabase
-          .from('users')
+          .from('profiles')
           .select()
-          .eq('role_id', 2)
+          .eq('role', 'guru')
           .count(CountOption.exact);
 
       final siswaRes = await supabase
-          .from('users')
+          .from('profiles')
           .select()
-          .eq('role_id', 3)
+          .eq('role', 'siswa')
           .count(CountOption.exact);
 
       if (mounted) {
@@ -678,6 +678,7 @@ class _UserRecord {
   final String email;
   final String roleName;
   final String? classRoom;
+  final String? nisn;
   final DateTime createdAt;
 
   const _UserRecord({
@@ -686,6 +687,7 @@ class _UserRecord {
     required this.email,
     required this.roleName,
     this.classRoom,
+    this.nisn,
     required this.createdAt,
   });
 }
@@ -731,22 +733,29 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
     });
     try {
       final response = await supabase
-          .from('users')
-          .select('id, nama, email, class_room, created_at, role_id, roles(role_name)')
-          .inFilter('role_id', [2, 3])
-          .order('nama');
+          .from('profiles')
+          .select('id, full_name, email, created_at, role, detail_siswa(kelas, nisn)')
+          .inFilter('role', ['guru', 'siswa'])
+          .order('full_name');
 
       final guru = <_UserRecord>[];
       final siswa = <_UserRecord>[];
 
       for (final row in response as List<dynamic>) {
-        final roleName = (row['roles'] as Map<String, dynamic>)['role_name'] as String;
+        final roleRaw = row['role'] as String? ?? 'unknown';
+        final roleName = roleRaw.isNotEmpty 
+            ? '${roleRaw[0].toUpperCase()}${roleRaw.substring(1)}'
+            : 'Unknown';
+            
+        final detail = row['detail_siswa'] as Map<String, dynamic>?;
+
         final record = _UserRecord(
           id: row['id'] as String,
-          nama: row['nama'] as String? ?? '-',
+          nama: row['full_name'] as String? ?? '-',
           email: row['email'] as String? ?? '-',
           roleName: roleName,
-          classRoom: row['class_room'] as String?,
+          classRoom: detail?['kelas'] as String?,
+          nisn: detail?['nisn'] as String?,
           createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
         );
         if (roleName == 'Guru') {
@@ -827,7 +836,10 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
     if (confirm != true) return;
 
     try {
-      await supabase.from('users').delete().eq('id', user.id);
+      if (user.roleName.toLowerCase() == 'siswa') {
+        await supabase.from('detail_siswa').delete().eq('user_id', user.id);
+      }
+      await supabase.from('profiles').delete().eq('id', user.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1190,6 +1202,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _classRoomController = TextEditingController();
+  final _nisnController = TextEditingController();
   String _selectedRole = 'guru';
   bool _obscurePassword = true;
   bool _isSubmitting = false;
@@ -1200,6 +1213,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     _emailController.dispose();
     _passwordController.dispose();
     _classRoomController.dispose();
+    _nisnController.dispose();
     super.dispose();
   }
 
@@ -1218,12 +1232,16 @@ class _AddUserSheetState extends State<_AddUserSheet> {
         }
         await supabase.functions.invoke('create-user', body: body);
 
-        // Fallback update if create-user function doesn't handle class_room
-        if (_selectedRole == 'siswa' && _classRoomController.text.isNotEmpty) {
+        // Update detail_siswa for class_room and nisn
+        if (_selectedRole == 'siswa') {
           try {
-            await supabase.from('users').update({
-              'class_room': _classRoomController.text,
-            }).eq('email', _emailController.text);
+            final profile = await supabase.from('profiles').select('id').eq('email', _emailController.text).maybeSingle();
+            if (profile != null) {
+              await supabase.from('detail_siswa').update({
+                'kelas': _classRoomController.text.isNotEmpty ? _classRoomController.text : null,
+                'nisn': _nisnController.text.isNotEmpty ? _nisnController.text : null,
+              }).eq('user_id', profile['id']);
+            }
           } catch (_) {}
         }
 
@@ -1264,10 +1282,11 @@ class _AddUserSheetState extends State<_AddUserSheet> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Handle bar
             Center(
               child: Container(
@@ -1393,6 +1412,14 @@ class _AddUserSheetState extends State<_AddUserSheet> {
                           hintText: 'Contoh: X IPA 1',
                           keyboardType: TextInputType.text,
                         ),
+                        const SizedBox(height: 16),
+                        _buildLabel('NISN (Opsional)'),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _nisnController,
+                          hintText: 'Masukkan NISN siswa',
+                          keyboardType: TextInputType.number,
+                        ),
                       ],
                     )
                   : const SizedBox.shrink(),
@@ -1456,6 +1483,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
               ],
             ),
           ],
+        ),
         ),
       ),
     );
@@ -1544,6 +1572,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
   late final TextEditingController _namaController;
   late final TextEditingController _emailController;
   late final TextEditingController _classRoomController;
+  late final TextEditingController _nisnController;
   late String _selectedRole;
   bool _isSubmitting = false;
 
@@ -1553,6 +1582,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
     _namaController = TextEditingController(text: widget.user.nama);
     _emailController = TextEditingController(text: widget.user.email);
     _classRoomController = TextEditingController(text: widget.user.classRoom ?? '');
+    _nisnController = TextEditingController(text: widget.user.nisn ?? '');
     _selectedRole = widget.user.roleName.toLowerCase();
   }
 
@@ -1561,6 +1591,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
     _namaController.dispose();
     _emailController.dispose();
     _classRoomController.dispose();
+    _nisnController.dispose();
     super.dispose();
   }
 
@@ -1568,19 +1599,34 @@ class _EditUserSheetState extends State<_EditUserSheet> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isSubmitting = true);
       try {
-        final roleId = _selectedRole == 'guru' ? 2 : 3;
         final updates = <String, dynamic>{
-          'nama': _namaController.text,
+          'full_name': _namaController.text,
           'email': _emailController.text,
-          'role_id': roleId,
+          'role': _selectedRole,
         };
-        if (_selectedRole == 'siswa') {
-          updates['class_room'] = _classRoomController.text;
-        } else {
-          updates['class_room'] = null; // Clear if role changed to guru
-        }
 
-        await supabase.from('users').update(updates).eq('id', widget.user.id);
+        await supabase.from('profiles').update(updates).eq('id', widget.user.id);
+        
+        if (_selectedRole == 'siswa') {
+          // upsert or update detail_siswa
+          final detailUpdates = {
+             'kelas': _classRoomController.text.isNotEmpty ? _classRoomController.text : null,
+             'nisn': _nisnController.text.isNotEmpty ? _nisnController.text : null,
+          };
+          // Cek apakah ada record di detail_siswa
+          final existing = await supabase.from('detail_siswa').select('user_id').eq('user_id', widget.user.id).maybeSingle();
+          if (existing != null) {
+            await supabase.from('detail_siswa').update(detailUpdates).eq('user_id', widget.user.id);
+          } else {
+            await supabase.from('detail_siswa').insert({
+              'user_id': widget.user.id,
+              'kelas': detailUpdates['kelas'],
+              'nisn': detailUpdates['nisn'],
+            });
+          }
+        } else {
+          await supabase.from('detail_siswa').delete().eq('user_id', widget.user.id);
+        }
 
         if (mounted) {
           widget.onUserEdited();
@@ -1619,10 +1665,11 @@ class _EditUserSheetState extends State<_EditUserSheet> {
       ),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Handle bar
             Center(
               child: Container(
@@ -1728,6 +1775,14 @@ class _EditUserSheetState extends State<_EditUserSheet> {
                           hintText: 'Contoh: X IPA 1',
                           keyboardType: TextInputType.text,
                         ),
+                        const SizedBox(height: 16),
+                        _buildLabel('NISN (Opsional)'),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _nisnController,
+                          hintText: 'Masukkan NISN siswa',
+                          keyboardType: TextInputType.number,
+                        ),
                       ],
                     )
                   : const SizedBox.shrink(),
@@ -1791,6 +1846,7 @@ class _EditUserSheetState extends State<_EditUserSheet> {
               ],
             ),
           ],
+        ),
         ),
       ),
     );

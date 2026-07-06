@@ -55,24 +55,31 @@ class AuthService {
         throw const AuthException('Login gagal. Silakan coba lagi.');
       }
 
-      // 2. Ambil data profile + role via RPC (bypass RLS dengan SECURITY DEFINER)
-      //    Query langsung ke tabel users menyebabkan infinite recursion di RLS policy.
-      final dynamic rpcResult = await supabase.rpc('get_my_profile');
+      // 2. Ambil data profile dari tabel profiles
+      final userData = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (rpcResult == null) {
-        // User ada di Auth tapi tidak ada di tabel users
+      if (userData == null) {
+        // User ada di Auth tapi tidak ada di tabel profiles
         await supabase.auth.signOut();
         throw const AuthException(
           'Akun tidak terdaftar dalam sistem.\nHubungi administrator.',
         );
       }
 
-      final userData = rpcResult as Map<String, dynamic>;
-      final roleName = userData['role_name'] as String? ?? 'Unknown';
+      // Role adalah enum 'admin', 'guru', 'siswa'. 
+      // Kita perlu kapitalisasi (misal: 'admin' jadi 'Admin') agar sesuai format lama di app.
+      final rawRole = userData['role'] as String? ?? 'unknown';
+      final roleName = rawRole.isNotEmpty 
+          ? '${rawRole[0].toUpperCase()}${rawRole.substring(1)}'
+          : 'Unknown';
 
       return AuthResult(
         userId: user.id,
-        nama: userData['nama'] as String? ?? '',
+        nama: userData['full_name'] as String? ?? '',
         email: userData['email'] as String? ?? email,
         roleName: roleName,
       );

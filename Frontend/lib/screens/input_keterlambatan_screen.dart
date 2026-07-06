@@ -56,14 +56,21 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
   Future<void> _fetchSiswa() async {
     try {
       final response = await supabase
-          .from('users')
-          .select('id, nama, class_room')
-          .eq('role_id', 3)
-          .order('nama');
+          .from('profiles')
+          .select('id, full_name, detail_siswa(kelas)')
+          .eq('role', 'siswa')
+          .order('full_name');
 
       if (mounted) {
         setState(() {
-          _siswaList = List<Map<String, dynamic>>.from(response);
+          _siswaList = (response as List<dynamic>).map((row) {
+            final detail = row['detail_siswa'] as Map<String, dynamic>?;
+            return {
+              'id': row['id'],
+              'nama': row['full_name'],
+              'class_room': detail?['kelas'],
+            };
+          }).toList();
           _filteredSiswa = _siswaList;
           _isLoadingSiswa = false;
         });
@@ -301,11 +308,11 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
         final reporterId = supabase.auth.currentUser?.id;
         final duration = int.parse(_waktuController.text);
 
-        String level = 'Ringan';
+        String tugasHukuman = 'Tugas Ringan';
         if (duration > 15 && duration <= 30) {
-          level = 'Sedang';
+          tugasHukuman = 'Tugas Sedang';
         } else if (duration > 30) {
-          level = 'Berat';
+          tugasHukuman = 'Tugas Berat';
         }
 
         final now = DateTime.now();
@@ -314,14 +321,14 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
         final dateStr =
             '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
-        await supabase.from('attendance').insert({
+        await supabase.from('terlambat').insert({
           'user_id': _selectedUserId,
-          'reporter_id': reporterId,
-          'tanggal': dateStr,
-          'waktu': waktuStr,
-          'duration_minutes': duration,
-          'level': level,
-          'task_status': 'pending_task',
+          'pencatat_id': reporterId,
+          'tanggal_terlambat': dateStr,
+          'waktu_datang': waktuStr,
+          'durasi_menit': duration,
+          'tugas_hukuman': tugasHukuman,
+          'status_evaluasi': 'menunggu',
         });
 
         // Update tardiness level based on pending task count

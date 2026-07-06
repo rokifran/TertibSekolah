@@ -39,7 +39,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'attendance',
+          table: 'terlambat',
           callback: (payload) {
             if (mounted) _fetchDashboardData();
           },
@@ -56,21 +56,23 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   Future<void> _fetchDashboardData() async {
     try {
       final userRes = await supabase
-          .from('users')
-          .select('tardiness_level, class_room')
-          .eq('id', widget.authResult.userId)
-          .single();
+          .from('detail_siswa')
+          .select('status_disiplin, kelas')
+          .eq('user_id', widget.authResult.userId)
+          .maybeSingle();
 
       final attendanceRes = await supabase
-          .from('attendance')
-          .select('*, evaluations(*)')
+          .from('terlambat')
+          .select('*, bukti_evaluasi(*)')
           .eq('user_id', widget.authResult.userId)
           .order('created_at', ascending: false);
 
       if (mounted) {
         setState(() {
-          _tardinessLevel = userRes['tardiness_level'] ?? 'Aman';
-          _classRoom = userRes['class_room'] ?? '-';
+          if (userRes != null) {
+            _tardinessLevel = userRes['status_disiplin'] ?? 'Aman';
+            _classRoom = userRes['kelas'] ?? '-';
+          }
           _tasks = List<Map<String, dynamic>>.from(attendanceRes);
           _totalKeterlambatan = _tasks.length;
           _isLoading = false;
@@ -179,9 +181,14 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           .from('task_proofs')
           .getPublicUrl(fileName);
 
+      await supabase.from('bukti_evaluasi').insert({
+        'terlambat_id': attendanceId,
+        'photo_url': imageUrl,
+      });
+
       await supabase
-          .from('attendance')
-          .update({'evidence_photo': imageUrl, 'task_status': 'submitted'})
+          .from('terlambat')
+          .update({'status_evaluasi': 'selesai'})
           .eq('id', attendanceId);
 
       _fetchDashboardData();
@@ -512,13 +519,13 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
   Widget _buildPunishmentStatus() {
     final int pendingTaskCount = _tasks
-        .where((t) => t['task_status'] == 'pending_task')
+        .where((t) => t['status_evaluasi'] == 'menunggu')
         .length;
     final int assignedCount = _tasks
-        .where((t) => t['task_status'] == 'assigned')
+        .where((t) => t['status_evaluasi'] == 'mengerjakan')
         .length;
     final int submittedCount = _tasks
-        .where((t) => t['task_status'] == 'submitted')
+        .where((t) => t['status_evaluasi'] == 'selesai')
         .length;
 
     return Column(
@@ -680,10 +687,10 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
   Widget _buildBuktiBody(BuildContext context) {
     final pendingTasks = _tasks
-        .where((t) => t['task_status'] != null && t['task_status'] != 'graded')
+        .where((t) => t['status_evaluasi'] != null && t['status_evaluasi'] != 'selesai')
         .toList();
     final completedTasks = _tasks
-        .where((t) => t['task_status'] == 'graded')
+        .where((t) => t['status_evaluasi'] == 'selesai')
         .toList();
 
     return SingleChildScrollView(
@@ -741,15 +748,24 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   }
 
   Widget _buildTaskCard(Map<String, dynamic> task) {
-    final isPendingTask = task['task_status'] == 'pending_task';
-    final isSubmitted = task['task_status'] == 'submitted';
-    final isGraded = task['task_status'] == 'graded';
+    final status = task['status_evaluasi'] ?? 'menunggu';
+    final isPendingTask = status == 'menunggu';
+    final isSubmitted = status == 'selesai';
+    
+    final evaluationList = task['bukti_evaluasi'];
+    Map<String, dynamic>? evaluation;
+    if (evaluationList is List && evaluationList.isNotEmpty) {
+      evaluation = evaluationList[0];
+    } else if (evaluationList is Map) {
+      evaluation = Map<String, dynamic>.from(evaluationList);
+    }
+    
+    final isGraded = evaluation != null && evaluation['nilai'] != null;
+
     final taskDescription = isPendingTask
         ? 'Menunggu Tugas dari Guru'
-        : (task['task_description'] ?? 'Tugas Kedisiplinan');
-    final tanggal = task['tanggal'] ?? '-';
-
-    final evaluation = task['evaluations'] as Map<String, dynamic>?;
+        : (task['tugas_hukuman'] ?? 'Tugas Kedisiplinan');
+    final tanggal = task['tanggal_terlambat'] ?? '-';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -815,7 +831,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${evaluation['score'] ?? '-'}',
+                    '${evaluation['nilai'] ?? '-'}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -828,17 +844,9 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Kelengkapan: ${evaluation['completeness'] ?? '-'}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Kesesuaian: ${evaluation['suitability'] ?? '-'}',
-                        style: const TextStyle(
+                      const Text(
+                        'Tugas telah dinilai oleh guru',
+                        style: TextStyle(
                           fontSize: 14,
                           color: AppColors.onSurfaceVariant,
                         ),
@@ -849,6 +857,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ],
+          
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -896,7 +905,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ),
-          if (!isPendingTask && !isSubmitted && !isGraded) ...[
+          if (status == 'mengerjakan') ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -910,7 +919,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ),
             ),
           ],
-          if (task['evidence_photo'] != null) ...[
+          if (evaluation != null && evaluation['photo_url'] != null) ...[
             const SizedBox(height: 16),
             const Text(
               'Bukti Terunggah:',
@@ -920,7 +929,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                task['evidence_photo'],
+                evaluation['photo_url'],
                 height: 150,
                 width: double.infinity,
                 fit: BoxFit.cover,

@@ -5,13 +5,8 @@ class TardinessService {
   /// jumlah tugas keterlambatan yang belum diselesaikan (belum di-graded).
   static Future<void> updateStudentTardinessLevel(String userId) async {
     try {
-      // Panggil fungsi RPC 'update_tardiness_level' di Supabase
-      // Fungsi ini dijalankan sebagai SECURITY DEFINER sehingga memiliki
-      // izin untuk mengubah tabel users yang mungkin dilindungi RLS.
-      await supabase.rpc(
-        'update_tardiness_level',
-        params: {'student_id': userId},
-      );
+      // Tidak perlu lagi memanggil RPC karena sudah di-handle oleh 
+      // Database Trigger 'trg_update_siswa_tardiness' di Supabase.
     } catch (e) {
       print('Error updating tardiness level via RPC for user $userId: $e');
     }

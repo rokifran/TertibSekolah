@@ -31,35 +31,25 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
   Future<void> _fetchDetailSiswa() async {
     try {
       final response = await supabase
-          .from('attendance')
+          .from('terlambat')
           .select('*')
           .eq('user_id', widget.siswa['id'])
-          .order('tanggal', ascending: false)
-          .order('waktu', ascending: false);
-
-      final userResponse = await supabase
-          .from('users')
-          .select('tardiness_level')
-          .eq('id', widget.siswa['id'])
-          .single();
+          .order('tanggal_terlambat', ascending: false)
+          .order('waktu_datang', ascending: false);
 
       if (mounted) {
         setState(() {
           _attendanceHistory = List<Map<String, dynamic>>.from(response);
 
           _pendingTaskCount = _attendanceHistory
-              .where((e) => e['task_status'] == 'pending_task')
+              .where((e) => e['status_evaluasi'] == 'menunggu')
               .length;
           _assignedCount = _attendanceHistory
-              .where((e) => e['task_status'] == 'assigned')
+              .where((e) => e['status_evaluasi'] == 'mengerjakan')
               .length;
           _submittedCount = _attendanceHistory
-              .where((e) => e['task_status'] == 'submitted')
+              .where((e) => e['status_evaluasi'] == 'selesai')
               .length;
-
-          if (userResponse['tardiness_level'] != null) {
-            _tardinessLevel = userResponse['tardiness_level'];
-          }
 
           _isLoading = false;
         });
@@ -257,7 +247,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
             children: [
               Expanded(
                 child: _buildStatusCard(
-                  'Perlu Tugas',
+                  'Menunggu\nTugas',
                   _pendingTaskCount.toString(),
                   AppColors.error,
                   AppColors.errorContainer,
@@ -266,7 +256,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildStatusCard(
-                  'Menunggu\nBukti',
+                  'Sedang\nDikerjakan',
                   _assignedCount.toString(),
                   Colors.orange[800]!,
                   Colors.orange[100]!,
@@ -275,7 +265,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildStatusCard(
-                  'Perlu\nDinilai',
+                  'Tugas\nSelesai',
                   _submittedCount.toString(),
                   Colors.green[800]!,
                   Colors.lightGreen[100]!,
@@ -378,27 +368,26 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
             )
           else
             ..._attendanceHistory.map((history) {
-              final String tanggal = history['tanggal'] ?? '-';
-              final int duration = history['duration_minutes'] ?? 0;
-              final String level = history['level'] ?? '-';
+              final String tanggal = history['tanggal_terlambat'] ?? '-';
+              final int duration = history['durasi_menit'] ?? 0;
+              final String tugas = history['tugas_hukuman'] ?? '-';
               String statusLabel = '';
-              String taskStatus = history['task_status'] ?? 'pending_task';
+              String taskStatus = history['status_evaluasi'] ?? 'menunggu';
 
-              if (taskStatus == 'pending_task') {
-                statusLabel = 'Perlu Tugas';
-              } else if (taskStatus == 'assigned')
-                statusLabel = 'Menunggu Bukti';
-              else if (taskStatus == 'submitted')
-                statusLabel = 'Perlu Dinilai';
-              else if (taskStatus == 'graded')
-                statusLabel = 'Tuntas';
+              if (taskStatus == 'menunggu') {
+                statusLabel = 'Menunggu';
+              } else if (taskStatus == 'mengerjakan') {
+                statusLabel = 'Mengerjakan';
+              } else if (taskStatus == 'selesai') {
+                statusLabel = 'Selesai';
+              }
 
               return Column(
                 children: [
                   _buildHistoryItem(
                     tanggal,
                     'Terlambat $duration menit',
-                    'Tingkat: $level',
+                    'Tugas: $tugas',
                     statusLabel,
                   ),
                   if (history != _attendanceHistory.last)

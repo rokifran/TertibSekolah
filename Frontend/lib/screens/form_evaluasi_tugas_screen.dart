@@ -25,10 +25,6 @@ class FormEvaluasiTugasScreen extends StatefulWidget {
 
 class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
   final _scoreController = TextEditingController();
-  final _noteController = TextEditingController();
-
-  String? _tingkatKelengkapan;
-  String? _tingkatKesesuaian;
 
   bool _isLoadingHistory = true;
   List<Map<String, dynamic>> _lateHistory = [];
@@ -43,14 +39,19 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
   Future<void> _fetchTaskDetails() async {
     try {
       final response = await supabase
-          .from('attendance')
-          .select('*')
+          .from('terlambat')
+          .select('*, bukti_evaluasi(*)')
           .eq('id', widget.attendanceId)
           .single();
 
       if (mounted) {
         setState(() {
-          _evidencePhotoUrl = response['evidence_photo'];
+          final buktiList = response['bukti_evaluasi'];
+          if (buktiList is List && buktiList.isNotEmpty) {
+            _evidencePhotoUrl = buktiList[0]['photo_url'];
+          } else if (buktiList is Map) {
+            _evidencePhotoUrl = buktiList['photo_url'];
+          }
           _lateHistory = [response];
           _isLoadingHistory = false;
         });
@@ -70,7 +71,6 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
   @override
   void dispose() {
     _scoreController.dispose();
-    _noteController.dispose();
     super.dispose();
   }
 
@@ -197,15 +197,15 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
             )
           else
             ..._lateHistory.map((history) {
-              final String tanggal = history['tanggal'] ?? '-';
-              final int duration = history['duration_minutes'] ?? 0;
-              final String level = history['level'] ?? '-';
+              final String tanggal = history['tanggal_terlambat'] ?? '-';
+              final int duration = history['durasi_menit'] ?? 0;
+              final String tugas = history['tugas_hukuman'] ?? '-';
               return Column(
                 children: [
                   _buildHistoryItem(
                     tanggal,
                     'Terlambat $duration menit',
-                    'Tingkat: $level',
+                    'Tugas: $tugas',
                   ),
                   if (history != _lateHistory.last)
                     const Divider(color: AppColors.surfaceVariant),
@@ -473,125 +473,6 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Tingkat Kelengkapan',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onBackground,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _tingkatKelengkapan,
-            decoration: InputDecoration(
-              hintText: 'Pilih tingkat kelengkapan',
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-            items: ['Lengkap', 'Tidak Lengkap'].map((String value) {
-              return DropdownMenuItem<String>(value: value, child: Text(value));
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _tingkatKelengkapan = newValue;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Tingkat Kesesuaian',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onBackground,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _tingkatKesesuaian,
-            decoration: InputDecoration(
-              hintText: 'Pilih tingkat kesesuaian',
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-            items: ['Baik', 'Cukup', 'Kurang'].map((String value) {
-              return DropdownMenuItem<String>(value: value, child: Text(value));
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _tingkatKesesuaian = newValue;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Catatan Guru',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onBackground,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _noteController,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: 'Tambahkan catatan atau masukan untuk siswa...',
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -607,12 +488,10 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       child: SafeArea(
         child: FilledButton(
           onPressed: () async {
-            if (_scoreController.text.isEmpty ||
-                _tingkatKelengkapan == null ||
-                _tingkatKesesuaian == null) {
+            if (_scoreController.text.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Harap lengkapi semua form evaluasi'),
+                  content: Text('Harap masukkan nilai evaluasi'),
                 ),
               );
               return;
@@ -620,43 +499,16 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
 
             try {
               int score = int.tryParse(_scoreController.text) ?? 0;
-              bool isLulus = false;
-
-              if (score >= 75) {
-                if (_tingkatKelengkapan == 'Lengkap') {
-                  if (_tingkatKesesuaian != 'Kurang') {
-                    isLulus = true;
-                  }
-                }
-              }
+              bool isLulus = score >= 75;
 
               if (isLulus) {
-                try {
-                  await supabase
-                      .from('evaluations')
-                      .delete()
-                      .eq('attendance_id', int.parse(widget.attendanceId));
-                } catch (_) {}
-
-                await supabase.from('evaluations').insert({
-                  'attendance_id': int.parse(widget.attendanceId),
-                  'evaluator_id': supabase.auth.currentUser!.id,
-                  'score': score,
-                  'completeness': _tingkatKelengkapan,
-                  'suitability': _tingkatKesesuaian,
-                });
-
                 await supabase
-                    .from('attendance')
-                    .update({'task_status': 'graded'})
-                    .eq('id', int.parse(widget.attendanceId));
-
-                if (_lateHistory.isNotEmpty &&
-                    _lateHistory[0]['user_id'] != null) {
-                  await TardinessService.updateStudentTardinessLevel(
-                    _lateHistory[0]['user_id'],
-                  );
-                }
+                    .from('bukti_evaluasi')
+                    .update({
+                      'nilai': score,
+                      'evaluator_id': supabase.auth.currentUser!.id,
+                    })
+                    .eq('terlambat_id', widget.attendanceId);
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -667,17 +519,15 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                   Navigator.pop(context);
                 }
               } else {
-                try {
-                  await supabase
-                      .from('evaluations')
-                      .delete()
-                      .eq('attendance_id', int.parse(widget.attendanceId));
-                } catch (_) {}
+                await supabase
+                    .from('bukti_evaluasi')
+                    .delete()
+                    .eq('terlambat_id', widget.attendanceId);
 
                 await supabase
-                    .from('attendance')
-                    .update({'task_status': 'assigned', 'evidence_photo': null})
-                    .eq('id', int.parse(widget.attendanceId));
+                    .from('terlambat')
+                    .update({'status_evaluasi': 'mengerjakan'})
+                    .eq('id', widget.attendanceId);
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

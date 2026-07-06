@@ -36,33 +36,31 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   Future<void> _fetchDashboardData() async {
     try {
       final taskResponse = await supabase
-          .from('attendance')
-          .select('task_status')
-          .neq('task_status', 'graded');
+          .from('terlambat')
+          .select('status_evaluasi');
           
       final studentResponse = await supabase
-          .from('users')
-          .select('tardiness_level')
-          .eq('role_id', 3);
+          .from('detail_siswa')
+          .select('status_disiplin');
 
       final activityResponse = await supabase
-          .from('attendance')
-          .select('id, created_at, task_status, task_description, duration_minutes, level, users:users!attendance_user_id_fkey!inner(nama, class_room)')
+          .from('terlambat')
+          .select('id, created_at, status_evaluasi, tugas_hukuman, durasi_menit, profiles!inner(full_name, detail_siswa(kelas))')
           .order('created_at', ascending: false)
           .limit(10);
 
       if (mounted) {
         setState(() {
           final allTasks = List<Map<String, dynamic>>.from(taskResponse);
-          _pendingTaskCount = allTasks.where((d) => d['task_status'] == 'pending_task').length;
-          _assignedCount = allTasks.where((d) => d['task_status'] == 'assigned').length;
-          _submittedCount = allTasks.where((d) => d['task_status'] == 'submitted').length;
+          _pendingTaskCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu').length;
+          _assignedCount = allTasks.where((d) => d['status_evaluasi'] == 'mengerjakan').length;
+          _submittedCount = allTasks.where((d) => d['status_evaluasi'] == 'selesai').length;
 
           final allStudents = List<Map<String, dynamic>>.from(studentResponse);
-          _ringanCount = allStudents.where((d) => d['tardiness_level']?.toString().toLowerCase() == 'ringan').length;
-          _sedangCount = allStudents.where((d) => d['tardiness_level']?.toString().toLowerCase() == 'sedang').length;
+          _ringanCount = allStudents.where((d) => d['status_disiplin']?.toString().toLowerCase() == 'ringan').length;
+          _sedangCount = allStudents.where((d) => d['status_disiplin']?.toString().toLowerCase() == 'sedang').length;
           _beratCount = allStudents.where((d) {
-            final level = d['tardiness_level']?.toString().toLowerCase() ?? '';
+            final level = d['status_disiplin']?.toString().toLowerCase() ?? '';
             return level == 'berat' || level.contains('orang tua');
           }).length;
 
@@ -578,12 +576,17 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   }
 
   Widget _buildActivityCardFromData(Map<String, dynamic> data) {
-    final user = data['users'] as Map<String, dynamic>? ?? {};
-    final nama = user['nama']?.toString() ?? 'Siswa';
-    final className = user['class_room']?.toString();
-    final status = data['task_status']?.toString() ?? 'pending_task';
-    final duration = data['duration_minutes']?.toString() ?? '0';
-    final level = data['level']?.toString() ?? 'Ringan';
+    final user = data['profiles'] as Map<String, dynamic>? ?? {};
+    final nama = user['full_name']?.toString() ?? 'Siswa';
+    final detailList = user['detail_siswa'];
+    String? className;
+    if (detailList is List && detailList.isNotEmpty) {
+      className = detailList[0]['kelas']?.toString();
+    } else if (detailList is Map) {
+      className = detailList['kelas']?.toString();
+    }
+    final status = data['status_evaluasi']?.toString() ?? 'menunggu';
+    final duration = data['durasi_menit']?.toString() ?? '0';
     final createdAt = data['created_at']?.toString() ?? '';
 
     // Parse time roughly
@@ -610,26 +613,26 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
     String description;
     String title = nama;
 
-    if (status == 'pending_task') {
+    if (status == 'menunggu') {
       icon = Icons.timer_off_outlined;
       iconColor = AppColors.onErrorContainer;
       iconBgColor = AppColors.errorContainer;
       description = 'Terlambat $duration menit';
-    } else if (status == 'assigned') {
+    } else if (status == 'mengerjakan') {
       icon = Icons.assignment_outlined;
       iconColor = AppColors.onSecondaryContainer;
       iconBgColor = AppColors.secondaryContainer;
-      description = 'Diberikan tugas';
-    } else if (status == 'submitted') {
-      icon = Icons.upload_file_outlined;
-      iconColor = AppColors.onPrimaryContainer;
-      iconBgColor = AppColors.primaryContainer;
-      description = 'Mengumpulkan tugas';
-    } else { // graded or others
+      description = 'Mengerjakan tugas';
+    } else if (status == 'selesai') {
       icon = Icons.check_circle_outline;
       iconColor = AppColors.onTertiaryContainer;
       iconBgColor = AppColors.tertiaryContainer;
-      description = 'Tugas dinilai';
+      description = 'Tugas selesai';
+    } else {
+      icon = Icons.info_outline;
+      iconColor = AppColors.outline;
+      iconBgColor = AppColors.surfaceVariant;
+      description = 'Lainnya';
     }
 
     return _buildActivityCard(
@@ -638,7 +641,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
       iconBgColor: iconBgColor,
       title: title,
       className: className,
-      tardinessLevel: status == 'pending_task' ? level : null,
+      tardinessLevel: null,
       description: description,
       time: timeAgo,
     );

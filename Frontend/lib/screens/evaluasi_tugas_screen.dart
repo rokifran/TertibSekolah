@@ -59,7 +59,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
         .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
-            table: 'attendance',
+            table: 'terlambat',
             callback: (payload) {
               if (mounted) _fetchSiswaPerluEvaluasi();
             })
@@ -76,17 +76,16 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
   Future<void> _fetchSiswaPerluEvaluasi() async {
     try {
       final response = await supabase
-          .from('attendance')
-          .select('id, task_description, task_status, tanggal, users:users!attendance_user_id_fkey!inner(nama, class_room, tardiness_level)')
-          .neq('task_status', 'graded')
+          .from('terlambat')
+          .select('id, tugas_hukuman, status_evaluasi, tanggal_terlambat, profiles!inner(full_name, detail_siswa(kelas, status_disiplin))')
           .order('created_at');
       
       if (mounted) {
         setState(() {
           final allData = List<Map<String, dynamic>>.from(response);
-          _perluTugasList = allData.where((d) => d['task_status'] == 'pending_task').toList();
-          _menungguBuktiList = allData.where((d) => d['task_status'] == 'assigned').toList();
-          _perluDinilaiList = allData.where((d) => d['task_status'] == 'submitted').toList();
+          _perluTugasList = allData.where((d) => d['status_evaluasi'] == 'menunggu').toList();
+          _menungguBuktiList = allData.where((d) => d['status_evaluasi'] == 'mengerjakan').toList();
+          _perluDinilaiList = allData.where((d) => d['status_evaluasi'] == 'selesai').toList();
           _isLoading = false;
         });
       }
@@ -139,9 +138,9 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
     if (result == true && controller.text.isNotEmpty) {
       setState(() => _isLoading = true);
       try {
-        await supabase.from('attendance').update({
-          'task_description': controller.text,
-          'task_status': 'assigned',
+        await supabase.from('terlambat').update({
+          'tugas_hukuman': controller.text,
+          'status_evaluasi': 'mengerjakan',
         }).eq('id', attendanceId);
         
         await _fetchSiswaPerluEvaluasi();
@@ -233,15 +232,22 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                   'Nilai',
                   (id) {
                     final data = _perluDinilaiList.firstWhere((e) => e['id'].toString() == id);
-                    final siswa = data['users'];
+                    final siswa = data['profiles'] ?? {};
+                    final detailList = siswa['detail_siswa'];
+                    Map<String, dynamic>? detailSiswa;
+                    if (detailList is List && detailList.isNotEmpty) {
+                      detailSiswa = detailList[0];
+                    } else if (detailList is Map) {
+                      detailSiswa = Map<String, dynamic>.from(detailList);
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => FormEvaluasiTugasScreen(
                           attendanceId: id,
-                          namaSiswa: siswa['nama'] ?? 'Tanpa Nama',
-                          tugas: data['task_description'] ?? 'Tugas Kedisiplinan',
-                          kelas: siswa['class_room'] ?? '-',
+                          namaSiswa: siswa['full_name'] ?? 'Tanpa Nama',
+                          tugas: data['tugas_hukuman'] ?? 'Tugas Kedisiplinan',
+                          kelas: detailSiswa?['kelas'] ?? '-',
                         ),
                       ),
                     ).then((_) => _fetchSiswaPerluEvaluasi());
@@ -257,8 +263,8 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
 
   Widget _buildList(List<Map<String, dynamic>> list, String description, String actionLabel, Function(String)? onAction) {
     final filteredList = list.where((data) {
-      final siswa = data['users'];
-      final nama = (siswa['nama'] ?? '').toString().toLowerCase();
+      final siswa = data['profiles'] ?? {};
+      final nama = (siswa['full_name'] ?? '').toString().toLowerCase();
       return nama.contains(_searchQuery);
     }).toList();
 
@@ -288,18 +294,25 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
             )
           else
             ...filteredList.map((data) {
-              final siswa = data['users'];
+              final siswa = data['profiles'] ?? {};
+              final detailList = siswa['detail_siswa'];
+              Map<String, dynamic>? detailSiswa;
+              if (detailList is List && detailList.isNotEmpty) {
+                detailSiswa = detailList[0];
+              } else if (detailList is Map) {
+                detailSiswa = Map<String, dynamic>.from(detailList);
+              }
               final attendanceId = data['id'].toString();
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: _buildEvaluasiCard(
                   context,
                   attendanceId: attendanceId,
-                  namaSiswa: siswa['nama'] ?? 'Tanpa Nama',
-                  tugas: data['task_description'] ?? 'Tugas belum diberikan',
-                  kelas: siswa['class_room'] ?? '-',
-                  tanggal: 'Tanggal: ${data['tanggal']}',
-                  tingkat: _capitalize(siswa['tardiness_level'] ?? 'Sedang'),
+                  namaSiswa: siswa['full_name'] ?? 'Tanpa Nama',
+                  tugas: data['tugas_hukuman'] ?? 'Tugas belum diberikan',
+                  kelas: detailSiswa?['kelas'] ?? '-',
+                  tanggal: 'Tanggal: ${data['tanggal_terlambat']}',
+                  tingkat: _capitalize(detailSiswa?['status_disiplin'] ?? 'Sedang'),
                   actionLabel: actionLabel,
                   onAction: onAction,
                 ),
