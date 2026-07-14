@@ -77,7 +77,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
     try {
       final response = await supabase
           .from('terlambat')
-          .select('id, tugas_hukuman, status_evaluasi, tanggal_terlambat, profiles!inner(full_name, detail_siswa(kelas, status_disiplin))')
+          .select('id, tugas_hukuman, status_evaluasi, tanggal_terlambat, profiles!terlambat_user_id_fkey!inner(full_name, detail_siswa(kelas, status_disiplin))')
           .order('created_at');
       
       if (mounted) {
@@ -85,7 +85,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
           final allData = List<Map<String, dynamic>>.from(response);
           _perluTugasList = allData.where((d) => d['status_evaluasi'] == 'menunggu').toList();
           _menungguBuktiList = allData.where((d) => d['status_evaluasi'] == 'mengerjakan').toList();
-          _perluDinilaiList = allData.where((d) => d['status_evaluasi'] == 'selesai').toList();
+          _perluDinilaiList = allData.where((d) => d['status_evaluasi'] == 'menunggu_nilai').toList();
           _isLoading = false;
         });
       }

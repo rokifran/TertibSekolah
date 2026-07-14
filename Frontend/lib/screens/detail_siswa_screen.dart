@@ -48,7 +48,7 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               .where((e) => e['status_evaluasi'] == 'mengerjakan')
               .length;
           _submittedCount = _attendanceHistory
-              .where((e) => e['status_evaluasi'] == 'selesai')
+              .where((e) => e['status_evaluasi'] == 'menunggu_nilai')
               .length;
 
           _isLoading = false;
@@ -378,6 +378,8 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
                 statusLabel = 'Menunggu';
               } else if (taskStatus == 'mengerjakan') {
                 statusLabel = 'Mengerjakan';
+              } else if (taskStatus == 'menunggu_nilai') {
+                statusLabel = 'Menunggu Penilaian';
               } else if (taskStatus == 'selesai') {
                 statusLabel = 'Selesai';
               }

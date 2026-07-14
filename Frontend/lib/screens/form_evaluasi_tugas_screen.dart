@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
-import '../core/tardiness_service.dart';
 
 class FormEvaluasiTugasScreen extends StatefulWidget {
   final String attendanceId;
@@ -28,7 +27,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
 
   bool _isLoadingHistory = true;
   List<Map<String, dynamic>> _lateHistory = [];
-  String? _evidencePhotoUrl;
+  List<String> _evidencePhotos = [];
 
   @override
   void initState() {
@@ -47,12 +46,19 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       if (mounted) {
         setState(() {
           final buktiList = response['bukti_evaluasi'];
-          if (buktiList is List && buktiList.isNotEmpty) {
-            final path = buktiList[0]['photo_path'];
-            _evidencePhotoUrl = path != null ? supabase.storage.from('task_proofs').getPublicUrl(path) : null;
+          _evidencePhotos = [];
+          if (buktiList is List) {
+            for (final bukti in buktiList) {
+              final path = bukti['photo_path'];
+              if (path != null) {
+                _evidencePhotos.add(path);
+              }
+            }
           } else if (buktiList is Map) {
             final path = buktiList['photo_path'];
-            _evidencePhotoUrl = path != null ? supabase.storage.from('task_proofs').getPublicUrl(path) : null;
+            if (path != null) {
+              _evidencePhotos.add(path);
+            }
           }
           _lateHistory = [response];
           _isLoadingHistory = false;
@@ -297,70 +303,56 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
             style: const TextStyle(fontSize: 14, color: AppColors.outline),
           ),
           const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            height: 200,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.outlineVariant.withValues(alpha: 0.5),
-                style: BorderStyle.solid,
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _evidencePhotoUrl != null
-                ? GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => Dialog(
-                          backgroundColor: Colors.transparent,
-                          insetPadding: const EdgeInsets.all(16),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              InteractiveViewer(
-                                child: Image.network(
-                                  _evidencePhotoUrl!,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                              ),
-                            ],
+          _evidencePhotos.isNotEmpty
+              ? SizedBox(
+                  height: 120,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _evidencePhotos.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final photoPath = _evidencePhotos[index];
+                      final fullUrl = supabase.storage
+                          .from('task_proofs')
+                          .getPublicUrl(photoPath);
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: GestureDetector(
+                          onTap: () => _showImagePreview(context, fullUrl),
+                          child: Image.network(
+                            fullUrl,
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              width: 120,
+                              color: AppColors.surfaceContainerHigh,
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.broken_image, color: AppColors.error),
+                            ),
                           ),
                         ),
                       );
                     },
-                    child: Image.network(
-                      _evidencePhotoUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Center(
-                            child: Text(
-                              'Gagal memuat gambar',
-                              style: TextStyle(color: AppColors.error),
-                            ),
-                          ),
+                  ),
+                )
+              : Container(
+                  width: double.infinity,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                      style: BorderStyle.solid,
                     ),
-                  )
-                : const Column(
+                  ),
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.image_outlined,
-                        size: 48,
+                        size: 40,
                         color: AppColors.outline,
                       ),
                       SizedBox(height: 8),
@@ -373,50 +365,85 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                       ),
                     ],
                   ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () async {
-              if (_evidencePhotoUrl != null) {
-                final Uri url = Uri.parse(_evidencePhotoUrl!);
-                try {
-                  final bool success = await launchUrl(
-                    url,
-                    mode: LaunchMode.externalApplication,
-                  );
-                  if (!success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Tidak dapat membuka tautan'),
-                      ),
+                ),
+          if (_evidencePhotos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () async {
+                if (_evidencePhotos.isNotEmpty) {
+                  final firstUrl = supabase.storage
+                      .from('task_proofs')
+                      .getPublicUrl(_evidencePhotos.first);
+                  final Uri url = Uri.parse(firstUrl);
+                  try {
+                    final bool success = await launchUrl(
+                      url,
+                      mode: LaunchMode.externalApplication,
                     );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    if (!success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tidak dapat membuka tautan'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
                   }
                 }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Tidak ada lampiran untuk diunduh'),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Unduh Lampiran'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              },
+              icon: const Icon(Icons.open_in_browser, size: 18),
+              label: const Text('Buka Bukti Pertama di Browser'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.outlineVariant),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(100),
+                ),
               ),
             ),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+
+  void _showImagePreview(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('Gagal memuat gambar'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -505,12 +532,13 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
 
               if (isLulus) {
                 await supabase
-                    .from('bukti_evaluasi')
+                    .from('terlambat')
                     .update({
                       'nilai': score,
                       'evaluator_id': supabase.auth.currentUser!.id,
+                      'status_evaluasi': 'selesai',
                     })
-                    .eq('terlambat_id', widget.attendanceId);
+                    .eq('id', widget.attendanceId);
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

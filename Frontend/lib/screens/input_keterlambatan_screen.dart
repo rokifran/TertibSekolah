@@ -41,14 +41,19 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
         "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
     _siswaFocusNode.addListener(() {
       if (!_siswaFocusNode.hasFocus) {
-        _removeOverlay();
-        // If user typed something but didn't select, revert to last selected
-        if (_selectedNama != null &&
-            _siswaSearchController.text != _selectedNama) {
-          _siswaSearchController.text = _selectedNama!;
-        } else if (_selectedNama == null) {
-          _siswaSearchController.clear();
-        }
+        // Berikan sedikit delay agar event onTap pada item overlay dapat dieksekusi terlebih dahulu
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (mounted) {
+            _removeOverlay();
+            // Jika user mengetik sesuatu tapi tidak memilih dari dropdown, kembalikan ke nama terpilih sebelumnya atau kosongkan
+            if (_selectedNama != null &&
+                _siswaSearchController.text != _selectedNama) {
+              _siswaSearchController.text = _selectedNama!;
+            } else if (_selectedNama == null) {
+              _siswaSearchController.clear();
+            }
+          }
+        });
       }
     });
   }
@@ -56,21 +61,28 @@ class _InputKeterlambatanScreenState extends State<InputKeterlambatanScreen> {
   Future<void> _fetchSiswa() async {
     try {
       final response = await supabase
-          .from('profiles')
-          .select('id, full_name, detail_siswa(kelas)')
-          .eq('role', 'siswa')
-          .order('full_name');
+          .from('detail_siswa')
+          .select('kelas, profiles!inner(id, full_name)');
 
       if (mounted) {
         setState(() {
-          _siswaList = (response as List<dynamic>).map((row) {
-            final detail = row['detail_siswa'] as Map<String, dynamic>?;
+          final allDetails = response as List<dynamic>;
+          
+          _siswaList = allDetails.map((row) {
+            final dynamic profile = row['profiles'];
+            final Map<String, dynamic> profileMap = (profile is List && profile.isNotEmpty) 
+                ? profile.first as Map<String, dynamic> 
+                : (profile as Map<String, dynamic>? ?? {});
+
             return {
-              'id': row['id'],
-              'nama': row['full_name'],
-              'class_room': detail?['kelas'],
+              'id': profileMap['id'],
+              'nama': profileMap['full_name'],
+              'class_room': row['kelas'],
             };
           }).toList();
+          
+          _siswaList.sort((a, b) => (a['nama'] ?? '').toString().compareTo((b['nama'] ?? '').toString()));
+          
           _filteredSiswa = _siswaList;
           _isLoadingSiswa = false;
         });

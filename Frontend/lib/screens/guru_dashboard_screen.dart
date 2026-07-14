@@ -54,7 +54,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           final allTasks = List<Map<String, dynamic>>.from(taskResponse);
           _pendingTaskCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu').length;
           _assignedCount = allTasks.where((d) => d['status_evaluasi'] == 'mengerjakan').length;
-          _submittedCount = allTasks.where((d) => d['status_evaluasi'] == 'selesai').length;
+          _submittedCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu_nilai').length;
 
           final allStudents = List<Map<String, dynamic>>.from(studentResponse);
           _ringanCount = allStudents.where((d) => d['status_disiplin']?.toString().toLowerCase() == 'ringan').length;
@@ -623,6 +623,11 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
       iconColor = AppColors.onSecondaryContainer;
       iconBgColor = AppColors.secondaryContainer;
       description = 'Mengerjakan tugas';
+    } else if (status == 'menunggu_nilai') {
+      icon = Icons.pending_actions_outlined;
+      iconColor = AppColors.onSecondaryContainer;
+      iconBgColor = AppColors.secondaryContainer;
+      description = 'Menunggu penilaian';
     } else if (status == 'selesai') {
       icon = Icons.check_circle_outline;
       iconColor = AppColors.onTertiaryContainer;

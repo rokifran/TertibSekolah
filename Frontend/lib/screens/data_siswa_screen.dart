@@ -14,6 +14,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
   bool _isLoading = true;
+  String? _errorMessage;
 
   List<Map<String, dynamic>> _allSiswa = [];
 
@@ -26,31 +27,41 @@ class _DataSiswaViewState extends State<DataSiswaView> {
   Future<void> _fetchSiswa() async {
     try {
       final response = await supabase
-          .from('profiles')
-          .select('id, full_name, email, detail_siswa(kelas, nisn, status_disiplin)')
-          .eq('role', 'siswa')
-          .order('full_name');
+          .from('detail_siswa')
+          .select('kelas, nisn, status_disiplin, profiles(id, full_name, email)');
 
       if (mounted) {
         setState(() {
-          _allSiswa = (response as List<dynamic>).map((row) {
-            final detail = row['detail_siswa'] as Map<String, dynamic>?;
+          final allDetails = response as List<dynamic>;
+          
+          _allSiswa = allDetails.map((row) {
+            final dynamic profile = row['profiles'];
+            final Map<String, dynamic> profileMap = (profile is List && profile.isNotEmpty) 
+                ? profile.first as Map<String, dynamic> 
+                : (profile as Map<String, dynamic>? ?? {});
+            
             return {
-              'id': row['id'],
-              'nama': row['full_name'],
-              'email': row['email'],
-              'class_room': detail?['kelas'],
-              'nisn': detail?['nisn'],
-              'tardiness_level': detail?['status_disiplin'],
+              'id': profileMap['id'],
+              'nama': profileMap['full_name'],
+              'email': profileMap['email'],
+              'class_room': row['kelas'],
+              'nisn': row['nisn'],
+              'tardiness_level': row['status_disiplin'],
             };
           }).toList();
+          
+          // Sort by name since we couldn't order by joined table easily
+          _allSiswa.sort((a, b) => (a['nama'] ?? '').toString().compareTo((b['nama'] ?? '').toString()));
+          
           _isLoading = false;
+          _errorMessage = null;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorMessage = e.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -131,6 +142,16 @@ class _DataSiswaViewState extends State<DataSiswaView> {
                 ),
               ),
           ],
+          if (_errorMessage != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Text(
+                  'Error: $_errorMessage',
+                  style: const TextStyle(color: AppColors.error),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi memerlukan akses ke galeri foto Anda untuk mengunggah bukti tugas kedisiplinan.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi memerlukan akses ke kamera Anda untuk mengambil foto bukti tugas kedisiplinan.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aplikasi memerlukan akses ke mikrofon untuk merekam video.</string>
 </dict>
 </plist>

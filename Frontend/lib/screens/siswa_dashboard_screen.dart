@@ -152,39 +152,51 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     return nameParts[0][0].toUpperCase();
   }
 
-  Future<void> _uploadProof(int attendanceId) async {
+  Future<void> _uploadProof(String attendanceId) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile == null) return;
+    final pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isEmpty) return;
 
     setState(() => _isLoading = true);
     try {
-      final targetPath = pickedFile.path.replaceAll(
-        RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false),
-        '_compressed.jpg',
-      );
-      var result = await FlutterImageCompress.compressAndGetFile(
-        pickedFile.path,
-        targetPath,
-        quality: 60,
-      );
+      final tempDir = Directory.systemTemp;
 
-      if (result == null) throw 'Gagal kompresi gambar';
+      for (int i = 0; i < pickedFiles.length; i++) {
+        final pickedFile = pickedFiles[i];
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final targetPath =
+            '${tempDir.path}/compressed_${timestamp}_$i.jpg';
 
-      final fileName =
-          '${widget.authResult.userId}/${attendanceId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await supabase.storage
-          .from('task_proofs')
-          .upload(fileName, File(result.path));
+        var result = await FlutterImageCompress.compressAndGetFile(
+          pickedFile.path,
+          targetPath,
+          quality: 60,
+        );
 
-      await supabase.from('bukti_evaluasi').insert({
-        'terlambat_id': attendanceId,
-        'photo_path': fileName,
-      });
+        if (result == null) continue;
+
+        final fileName =
+            '${widget.authResult.userId}/${attendanceId}_${timestamp}_$i.jpg';
+        final compressedFile = File(result.path);
+        
+        await supabase.storage
+            .from('task_proofs')
+            .upload(fileName, compressedFile);
+
+        // Clean up local compressed file
+        if (await compressedFile.exists()) {
+          await compressedFile.delete();
+        }
+
+        await supabase.from('bukti_evaluasi').insert({
+          'terlambat_id': attendanceId,
+          'photo_path': fileName,
+        });
+      }
 
       await supabase
           .from('terlambat')
-          .update({'status_evaluasi': 'selesai'})
+          .update({'status_evaluasi': 'menunggu_nilai'})
           .eq('id', attendanceId);
 
       _fetchDashboardData();
@@ -521,7 +533,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
         .where((t) => t['status_evaluasi'] == 'mengerjakan')
         .length;
     final int submittedCount = _tasks
-        .where((t) => t['status_evaluasi'] == 'selesai')
+        .where((t) => t['status_evaluasi'] == 'menunggu_nilai')
         .length;
 
     return Column(
@@ -683,7 +695,10 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
   Widget _buildBuktiBody(BuildContext context) {
     final pendingTasks = _tasks
-        .where((t) => t['status_evaluasi'] != null && t['status_evaluasi'] != 'selesai')
+        .where(
+          (t) =>
+              t['status_evaluasi'] != null && t['status_evaluasi'] != 'selesai',
+        )
         .toList();
     final completedTasks = _tasks
         .where((t) => t['status_evaluasi'] == 'selesai')
@@ -746,17 +761,18 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
   Widget _buildTaskCard(Map<String, dynamic> task) {
     final status = task['status_evaluasi'] ?? 'menunggu';
     final isPendingTask = status == 'menunggu';
-    final isSubmitted = status == 'selesai';
-    
+    final isSubmitted = status == 'menunggu_nilai';
+
     final evaluationList = task['bukti_evaluasi'];
-    Map<String, dynamic>? evaluation;
-    if (evaluationList is List && evaluationList.isNotEmpty) {
-      evaluation = evaluationList[0];
+    List<Map<String, dynamic>> evaluations = [];
+    if (evaluationList is List) {
+      evaluations = List<Map<String, dynamic>>.from(evaluationList);
     } else if (evaluationList is Map) {
-      evaluation = Map<String, dynamic>.from(evaluationList);
+      evaluations = [Map<String, dynamic>.from(evaluationList)];
     }
-    
-    final isGraded = evaluation != null && evaluation['nilai'] != null;
+
+    final isGraded = status == 'selesai' || task['nilai'] != null;
+    final evaluation = task;
 
     final taskDescription = isPendingTask
         ? 'Menunggu Tugas dari Guru'
@@ -814,7 +830,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
             ],
           ),
 
-          if (isGraded && evaluation != null) ...[
+          if (isGraded) ...[
             const SizedBox(height: 16),
             const Divider(color: AppColors.surfaceContainerHigh),
             const SizedBox(height: 16),
@@ -853,7 +869,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ],
-          
+
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -901,42 +917,103 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ),
-          if (status == 'mengerjakan') ...[
+          if (status == 'mengerjakan' || status == 'menunggu_nilai') ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => _uploadProof(task['id']),
                 icon: const Icon(Icons.upload_file),
-                label: const Text('Unggah Bukti'),
+                label: Text(status == 'menunggu_nilai' ? 'Tambah Bukti' : 'Unggah Bukti'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
               ),
             ),
           ],
-          if (evaluation != null && evaluation['photo_path'] != null) ...[
+          if (evaluations.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Text(
-              'Bukti Terunggah:',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            Text(
+              'Bukti Terunggah (${evaluations.length}):',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+                color: AppColors.onBackground,
+              ),
             ),
             const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                supabase.storage.from('task_proofs').getPublicUrl(evaluation['photo_path']),
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Text(
-                  'Gagal memuat gambar',
-                  style: TextStyle(color: Colors.red),
-                ),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: evaluations.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final eval = evaluations[index];
+                  final photoPath = eval['photo_path'];
+                  if (photoPath == null) return const SizedBox.shrink();
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: GestureDetector(
+                      onTap: () => _showImagePreview(context, photoPath),
+                      child: Image.network(
+                        supabase.storage
+                            .from('task_proofs')
+                            .getPublicUrl(photoPath),
+                        width: 120,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 120,
+                          color: AppColors.surfaceContainerHigh,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.broken_image, color: AppColors.error),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _showImagePreview(BuildContext context, String photoPath) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  supabase.storage.from('task_proofs').getPublicUrl(photoPath),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('Gagal memuat gambar'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       ),
     );
   }
