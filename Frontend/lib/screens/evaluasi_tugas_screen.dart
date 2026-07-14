@@ -5,7 +5,8 @@ import 'form_evaluasi_tugas_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EvaluasiTugasScreen extends StatelessWidget {
-  const EvaluasiTugasScreen({super.key});
+  final bool isAdmin;
+  const EvaluasiTugasScreen({super.key, this.isAdmin = false});
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +26,14 @@ class EvaluasiTugasScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: const EvaluasiTugasView(),
+      body: EvaluasiTugasView(isAdmin: isAdmin),
     );
   }
 }
 
 class EvaluasiTugasView extends StatefulWidget {
-  const EvaluasiTugasView({super.key});
+  final bool isAdmin;
+  const EvaluasiTugasView({super.key, this.isAdmin = false});
 
   @override
   State<EvaluasiTugasView> createState() => _EvaluasiTugasViewState();
@@ -161,6 +163,66 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
     }
   }
 
+  Future<void> _deleteTask(String attendanceId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Hapus Data', style: TextStyle(color: AppColors.onBackground)),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus data keterlambatan ini beserta bukti fotonya? Tindakan ini tidak dapat dibatalkan.',
+          style: TextStyle(color: AppColors.onBackground),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal', style: TextStyle(color: AppColors.outline)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Hapus', style: TextStyle(color: AppColors.onError)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final buktiRes = await supabase
+          .from('bukti_evaluasi')
+          .select('photo_path')
+          .eq('terlambat_id', attendanceId);
+      
+      final List<dynamic> buktiList = buktiRes;
+      final List<String> photoPaths = buktiList.map((e) => e['photo_path'] as String).toList();
+
+      if (photoPaths.isNotEmpty) {
+        await supabase.storage.from('task_proofs').remove(photoPaths);
+      }
+
+      await supabase.from('bukti_evaluasi').delete().eq('terlambat_id', attendanceId);
+      await supabase.from('terlambat').delete().eq('id', attendanceId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data berhasil dihapus')),
+        );
+      }
+      
+      await _fetchSiswaPerluEvaluasi();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus data: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -217,8 +279,8 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                 _buildList(
                   _perluTugasList,
                   'Siswa ini tercatat terlambat dan menunggu diberikan tugas hukuman.',
-                  'Beri Tugas',
-                  _assignTask,
+                  widget.isAdmin ? 'Belum Ada Tugas' : 'Beri Tugas',
+                  widget.isAdmin ? null : _assignTask,
                 ),
                 _buildList(
                   _menungguBuktiList,
@@ -229,8 +291,8 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                 _buildList(
                   _perluDinilaiList,
                   'Siswa telah mengunggah bukti dan menunggu dievaluasi.',
-                  'Nilai',
-                  (id) {
+                  widget.isAdmin ? 'Menunggu Penilaian' : 'Nilai',
+                  widget.isAdmin ? null : (id) {
                     final data = _perluDinilaiList.firstWhere((e) => e['id'].toString() == id);
                     final siswa = data['profiles'] ?? {};
                     final detailList = siswa['detail_siswa'];
@@ -315,6 +377,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                   tingkat: _capitalize(detailSiswa?['status_disiplin'] ?? 'Sedang'),
                   actionLabel: actionLabel,
                   onAction: onAction,
+                  onDelete: widget.isAdmin ? _deleteTask : null,
                 ),
               );
             }),
@@ -337,6 +400,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
     required String tingkat,
     required String actionLabel,
     Function(String)? onAction,
+    Function(String)? onDelete,
   }) {
     Color tingkatColor;
     Color tingkatBgColor;
@@ -441,10 +505,13 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
           const SizedBox(height: 16),
           const Divider(color: AppColors.surfaceVariant),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 12,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.access_time, size: 16, color: AppColors.outline),
                   const SizedBox(width: 6),
@@ -458,45 +525,62 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                   ),
                 ],
               ),
-              if (onAction != null)
-                FilledButton.icon(
-                  onPressed: () => onAction(attendanceId),
-                  icon: Icon(
-                    actionLabel == 'Nilai' ? Icons.edit_document : Icons.assignment_add, 
-                    size: 16
-                  ),
-                  label: Text(actionLabel),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.hourglass_empty, size: 14, color: AppColors.outline),
-                      const SizedBox(width: 4),
-                      Text(
-                        actionLabel,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.outline,
-                          fontWeight: FontWeight.bold,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onDelete != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        onPressed: () => onDelete(attendanceId),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.errorContainer.withValues(alpha: 0.3),
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  if (onAction != null)
+                    FilledButton.icon(
+                      onPressed: () => onAction(attendanceId),
+                      icon: Icon(
+                        actionLabel == 'Nilai' ? Icons.edit_document : Icons.assignment_add, 
+                        size: 16
+                      ),
+                      label: Text(actionLabel),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.hourglass_empty, size: 14, color: AppColors.outline),
+                          const SizedBox(width: 4),
+                          Text(
+                            actionLabel,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.outline,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ],

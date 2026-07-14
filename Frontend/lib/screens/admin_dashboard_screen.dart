@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../core/auth_service.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'evaluasi_tugas_screen.dart';
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -347,6 +348,33 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
           const SizedBox(height: 32),
 
+          // ── Menu Section ──
+          const Text(
+            'Menu Utama',
+            style: TextStyle(
+              fontFamily: 'Manrope',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _MenuCard(
+            icon: Icons.assignment_rounded,
+            title: 'Tugas & Keterlambatan',
+            subtitle: 'Pantau semua tugas dan riwayat keterlambatan siswa',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EvaluasiTugasScreen(isAdmin: true),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 32),
+
           // ── Logout Button ──
           Center(
             child: OutlinedButton.icon(
@@ -501,6 +529,81 @@ class _StatCardState extends State<_StatCard> with SingleTickerProviderStateMixi
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Menu Card ─────────────────────────────────────────────────────────────
+
+class _MenuCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _MenuCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.surfaceContainerHigh),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.secondary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.outline),
+            ],
+          ),
         ),
       ),
     );
