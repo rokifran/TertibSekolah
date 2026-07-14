@@ -28,7 +28,7 @@ class _DataSiswaViewState extends State<DataSiswaView> {
     try {
       final response = await supabase
           .from('detail_siswa')
-          .select('kelas, nisn, status_disiplin, profiles(id, full_name, email)');
+          .select('kelas, nisn, status_disiplin, total_terlambat, total_menit_terlambat, profiles(id, full_name, email)');
 
       if (mounted) {
         setState(() {
@@ -47,6 +47,8 @@ class _DataSiswaViewState extends State<DataSiswaView> {
               'class_room': row['kelas'],
               'nisn': row['nisn'],
               'tardiness_level': row['status_disiplin'],
+              'total_terlambat': row['total_terlambat'] ?? 0,
+              'total_menit_terlambat': row['total_menit_terlambat'] ?? 0,
             };
           }).toList();
           
@@ -232,23 +234,29 @@ class _DataSiswaViewState extends State<DataSiswaView> {
   }) {
     Color tingkatColor;
     Color tingkatBgColor;
+    IconData statusIcon;
     final lowercaseTingkat = tingkat.toLowerCase();
 
     if (lowercaseTingkat == 'aman') {
-      tingkatColor = AppColors.outline;
-      tingkatBgColor = Colors.white;
+      tingkatColor = AppColors.primary;
+      tingkatBgColor = AppColors.secondaryContainer;
+      statusIcon = Icons.check_circle_outline;
     } else if (lowercaseTingkat == 'ringan') {
       tingkatColor = Colors.green[800]!;
       tingkatBgColor = Colors.lightGreen[100]!;
+      statusIcon = Icons.info_outline;
     } else if (lowercaseTingkat == 'sedang') {
       tingkatColor = Colors.orange[800]!;
       tingkatBgColor = Colors.orange[100]!;
+      statusIcon = Icons.warning_amber_rounded;
     } else if (lowercaseTingkat == 'berat' || lowercaseTingkat == 'pemanggilan orang tua') {
       tingkatColor = AppColors.error;
       tingkatBgColor = AppColors.errorContainer;
+      statusIcon = Icons.report_gmailerrorred_rounded;
     } else {
       tingkatColor = AppColors.outline;
       tingkatBgColor = AppColors.surfaceVariant;
+      statusIcon = Icons.help_outline;
     }
 
     return InkWell(
@@ -277,72 +285,92 @@ class _DataSiswaViewState extends State<DataSiswaView> {
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.outlineVariant.withValues(alpha: 0.3),
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.3),
+                ),
               ),
+              child: const Icon(Icons.person, color: AppColors.primary),
             ),
-            child: const Icon(Icons.person, color: AppColors.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        namaSiswa,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Manrope',
-                          color: AppColors.onBackground,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          namaSiswa,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Manrope',
+                            color: AppColors.onBackground,
+                          ),
                         ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tingkatBgColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          tingkat,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: tingkatColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Kelas $kelas • NISN: $nisn',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.outline,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        statusIcon,
+                        size: 16,
+                        color: tingkatColor,
                       ),
-                      decoration: BoxDecoration(
-                        color: tingkatBgColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        tingkat,
+                      const SizedBox(width: 6),
+                      Text(
+                        '${siswa['total_terlambat'] ?? 0}x terlambat • Total ${siswa['total_menit_terlambat'] ?? 0} menit',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: tingkatColor,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Kelas $kelas • NISN: $nisn',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.outline,
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 }

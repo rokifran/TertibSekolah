@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../core/auth_service.dart';
 import 'login_screen.dart';
@@ -23,18 +24,59 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   int _ringanCount = 0;
   int _sedangCount = 0;
   int _beratCount = 0;
+  String _teacherName = 'Guru';
 
   List<Map<String, dynamic>> _recentActivities = [];
   bool _isLoadingActivities = true;
+  RealtimeChannel? _dashboardChannel;
 
   @override
   void initState() {
     super.initState();
     _fetchDashboardData();
+    _setupRealtime();
+  }
+
+  @override
+  void dispose() {
+    _dashboardChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtime() {
+    _dashboardChannel = supabase
+        .channel('public:dashboard:guru')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'terlambat',
+            callback: (payload) {
+              if (mounted) _fetchDashboardData();
+            })
+        .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'detail_siswa',
+            callback: (payload) {
+              if (mounted) _fetchDashboardData();
+            })
+        .subscribe();
   }
 
   Future<void> _fetchDashboardData() async {
     try {
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser != null) {
+        final profileRes = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+        if (profileRes != null && profileRes['full_name'] != null) {
+          _teacherName = profileRes['full_name'] as String;
+        }
+      }
+
       final taskResponse = await supabase
           .from('terlambat')
           .select('status_evaluasi');
@@ -45,7 +87,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
 
       final activityResponse = await supabase
           .from('terlambat')
-          .select('id, created_at, status_evaluasi, tugas_hukuman, durasi_menit, profiles!inner(full_name, detail_siswa(kelas))')
+          .select('id, created_at, status_evaluasi, tugas_hukuman, durasi_menit, profiles!terlambat_user_id_fkey!inner(full_name, detail_siswa(kelas, status_disiplin))')
           .order('created_at', ascending: false)
           .limit(10);
 
@@ -53,7 +95,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
         setState(() {
           final allTasks = List<Map<String, dynamic>>.from(taskResponse);
           _pendingTaskCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu').length;
-          _assignedCount = allTasks.where((d) => d['status_evaluasi'] == 'mengerjakan').length;
+          _assignedCount = allTasks.where((d) => d['status_evaluasi'] == 'mengerjakan' || d['status_evaluasi'] == 'revisi').length;
           _submittedCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu_nilai').length;
 
           final allStudents = List<Map<String, dynamic>>.from(studentResponse);
@@ -186,6 +228,16 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   }
 
   Widget _buildDashboardBody(BuildContext context, String currentDate) {
+    final hour = DateTime.now().hour;
+    String greeting = 'Selamat Pagi';
+    if (hour >= 11 && hour < 15) {
+      greeting = 'Selamat Siang';
+    } else if (hour >= 15 && hour < 18) {
+      greeting = 'Selamat Sore';
+    } else if (hour >= 18 || hour < 4) {
+      greeting = 'Selamat Malam';
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -201,9 +253,9 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Selamat Pagi, Guru!',
-            style: TextStyle(
+          Text(
+            '$greeting, $_teacherName!',
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               fontFamily: 'Manrope',
@@ -258,7 +310,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 110,
+            height: 140,
             child: _isLoadingActivities
                 ? const Center(child: CircularProgressIndicator())
                 : _recentActivities.isEmpty
@@ -521,12 +573,16 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      className != null ? '$title ($className)' : title,
-                      style: const TextStyle(
-                        color: AppColors.onBackground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        className != null ? '$title ($className)' : title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.onBackground,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -580,10 +636,13 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
     final nama = user['full_name']?.toString() ?? 'Siswa';
     final detailList = user['detail_siswa'];
     String? className;
+    String? tardinessLevel;
     if (detailList is List && detailList.isNotEmpty) {
       className = detailList[0]['kelas']?.toString();
+      tardinessLevel = detailList[0]['status_disiplin']?.toString();
     } else if (detailList is Map) {
       className = detailList['kelas']?.toString();
+      tardinessLevel = detailList['status_disiplin']?.toString();
     }
     final status = data['status_evaluasi']?.toString() ?? 'menunggu';
     final duration = data['durasi_menit']?.toString() ?? '0';
@@ -623,6 +682,11 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
       iconColor = AppColors.onSecondaryContainer;
       iconBgColor = AppColors.secondaryContainer;
       description = 'Mengerjakan tugas';
+    } else if (status == 'revisi') {
+      icon = Icons.assignment_late_outlined;
+      iconColor = AppColors.error;
+      iconBgColor = AppColors.errorContainer;
+      description = 'Revisi tugas';
     } else if (status == 'menunggu_nilai') {
       icon = Icons.pending_actions_outlined;
       iconColor = AppColors.onSecondaryContainer;
@@ -646,7 +710,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
       iconBgColor: iconBgColor,
       title: title,
       className: className,
-      tardinessLevel: null,
+      tardinessLevel: tardinessLevel,
       description: description,
       time: timeAgo,
     );

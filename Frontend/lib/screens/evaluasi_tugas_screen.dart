@@ -84,7 +84,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
         setState(() {
           final allData = List<Map<String, dynamic>>.from(response);
           _perluTugasList = allData.where((d) => d['status_evaluasi'] == 'menunggu').toList();
-          _menungguBuktiList = allData.where((d) => d['status_evaluasi'] == 'mengerjakan').toList();
+          _menungguBuktiList = allData.where((d) => d['status_evaluasi'] == 'mengerjakan' || d['status_evaluasi'] == 'revisi').toList();
           _perluDinilaiList = allData.where((d) => d['status_evaluasi'] == 'menunggu_nilai').toList();
           _isLoading = false;
         });
