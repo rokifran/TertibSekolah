@@ -28,33 +28,87 @@ class _DataSiswaViewState extends State<DataSiswaView> {
     try {
       final response = await supabase
           .from('detail_siswa')
-          .select('kelas, nisn, status_disiplin, total_terlambat, total_menit_terlambat, profiles(id, full_name, email)');
+          .select('kelas, nisn, status_disiplin, total_terlambat, total_menit_terlambat, user_id, profiles(id, full_name, email)');
+
+      final terlambatResponse = await supabase
+          .from('terlambat')
+          .select('user_id, durasi_menit, status_evaluasi');
 
       if (mounted) {
-        setState(() {
-          final allDetails = response as List<dynamic>;
+        final allDetails = response as List<dynamic>;
+        final allTerlambat = List<Map<String, dynamic>>.from(terlambatResponse as List<dynamic>);
+
+        final Map<String, List<Map<String, dynamic>>> tardinessMap = {};
+        for (final t in allTerlambat) {
+          final uId = t['user_id']?.toString();
+          if (uId != null) {
+            tardinessMap.putIfAbsent(uId, () => []).add(t);
+          }
+        }
+
+        final List<Map<String, dynamic>> processedSiswa = [];
+
+        for (final row in allDetails) {
+          final dynamic profile = row['profiles'];
+          final Map<String, dynamic> profileMap = (profile is List && profile.isNotEmpty) 
+              ? profile.first as Map<String, dynamic> 
+              : (profile as Map<String, dynamic>? ?? {});
           
-          _allSiswa = allDetails.map((row) {
-            final dynamic profile = row['profiles'];
-            final Map<String, dynamic> profileMap = (profile is List && profile.isNotEmpty) 
-                ? profile.first as Map<String, dynamic> 
-                : (profile as Map<String, dynamic>? ?? {});
-            
-            return {
-              'id': profileMap['id'],
-              'nama': profileMap['full_name'],
-              'email': profileMap['email'],
-              'class_room': row['kelas'],
-              'nisn': row['nisn'],
-              'tardiness_level': row['status_disiplin'],
-              'total_terlambat': row['total_terlambat'] ?? 0,
-              'total_menit_terlambat': row['total_menit_terlambat'] ?? 0,
-            };
+          final String? userId = profileMap['id']?.toString() ?? row['user_id']?.toString();
+          final userTardiness = userId != null ? (tardinessMap[userId] ?? []) : <Map<String, dynamic>>[];
+
+          final activeTardiness = userTardiness.where((t) {
+            final status = t['status_evaluasi']?.toString();
+            return status != 'dibatalkan' && status != 'selesai';
           }).toList();
-          
-          // Sort by name since we couldn't order by joined table easily
+
+          final int actualTotalTerlambat = activeTardiness.length;
+          final int actualTotalMenit = activeTardiness.fold<int>(
+            0,
+            (sum, item) => sum + (int.tryParse(item['durasi_menit']?.toString() ?? '0') ?? 0),
+          );
+
+          String calculatedStatus;
+          if (actualTotalTerlambat <= 2) {
+            calculatedStatus = 'aman';
+          } else if (actualTotalTerlambat <= 4) {
+            calculatedStatus = 'ringan';
+          } else if (actualTotalTerlambat <= 6) {
+            calculatedStatus = 'sedang';
+          } else {
+            calculatedStatus = 'berat';
+          }
+
+          final dbTotalTerlambat = row['total_terlambat'];
+          final dbTotalMenit = row['total_menit_terlambat'];
+          final dbStatus = row['status_disiplin'];
+
+          if (userId != null &&
+              (dbTotalTerlambat != actualTotalTerlambat ||
+                  dbTotalMenit != actualTotalMenit ||
+                  dbStatus != calculatedStatus)) {
+            supabase.from('detail_siswa').update({
+              'total_terlambat': actualTotalTerlambat,
+              'total_menit_terlambat': actualTotalMenit,
+              'status_disiplin': calculatedStatus,
+            }).eq('user_id', userId).then((_) {}).catchError((_) {});
+          }
+
+          processedSiswa.add({
+            'id': userId,
+            'nama': profileMap['full_name'],
+            'email': profileMap['email'],
+            'class_room': row['kelas'],
+            'nisn': row['nisn'],
+            'tardiness_level': calculatedStatus,
+            'total_terlambat': actualTotalTerlambat,
+            'total_menit_terlambat': actualTotalMenit,
+          });
+        }
+
+        setState(() {
+          _allSiswa = processedSiswa;
           _allSiswa.sort((a, b) => (a['nama'] ?? '').toString().compareTo((b['nama'] ?? '').toString()));
-          
           _isLoading = false;
           _errorMessage = null;
         });

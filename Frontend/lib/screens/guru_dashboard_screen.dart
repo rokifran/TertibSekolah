@@ -83,30 +83,111 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           
       final studentResponse = await supabase
           .from('detail_siswa')
-          .select('status_disiplin');
+          .select('user_id, status_disiplin, total_terlambat, total_menit_terlambat');
+
+      final allTardinessResponse = await supabase
+          .from('terlambat')
+          .select('user_id, durasi_menit, status_evaluasi');
 
       final activityResponse = await supabase
           .from('terlambat')
-          .select('id, created_at, status_evaluasi, tugas_hukuman, durasi_menit, profiles!terlambat_user_id_fkey!inner(full_name, detail_siswa(kelas, status_disiplin))')
+          .select('id, user_id, created_at, status_evaluasi, tugas_hukuman, durasi_menit, profiles!terlambat_user_id_fkey!inner(id, full_name, detail_siswa(kelas, status_disiplin))')
           .order('created_at', ascending: false)
           .limit(10);
 
       if (mounted) {
+        final allTasks = List<Map<String, dynamic>>.from(taskResponse);
+        final allStudentsDetails = List<Map<String, dynamic>>.from(studentResponse);
+        final allTardiness = List<Map<String, dynamic>>.from(allTardinessResponse);
+
+        final Map<String, List<Map<String, dynamic>>> tardinessMap = {};
+        for (final t in allTardiness) {
+          final uId = t['user_id']?.toString();
+          if (uId != null) {
+            tardinessMap.putIfAbsent(uId, () => []).add(t);
+          }
+        }
+
+        int ringanCount = 0;
+        int sedangCount = 0;
+        int beratCount = 0;
+        final Map<String, String> userCalculatedLevel = {};
+
+        for (final student in allStudentsDetails) {
+          final userId = student['user_id']?.toString();
+          if (userId == null) continue;
+
+          final userTardiness = tardinessMap[userId] ?? [];
+          final activeTardiness = userTardiness.where((t) {
+            final status = t['status_evaluasi']?.toString();
+            return status != 'dibatalkan' && status != 'selesai';
+          }).toList();
+
+          final int actualTotalTerlambat = activeTardiness.length;
+          final int actualTotalMenit = activeTardiness.fold<int>(
+            0,
+            (sum, item) => sum + (int.tryParse(item['durasi_menit']?.toString() ?? '0') ?? 0),
+          );
+
+          String calculatedStatus;
+          if (actualTotalTerlambat <= 2) {
+            calculatedStatus = 'aman';
+          } else if (actualTotalTerlambat <= 4) {
+            calculatedStatus = 'ringan';
+            ringanCount++;
+          } else if (actualTotalTerlambat <= 6) {
+            calculatedStatus = 'sedang';
+            sedangCount++;
+          } else {
+            calculatedStatus = 'berat';
+            beratCount++;
+          }
+
+          userCalculatedLevel[userId] = calculatedStatus;
+
+          final dbTotalTerlambat = student['total_terlambat'];
+          final dbTotalMenit = student['total_menit_terlambat'];
+          final dbStatus = student['status_disiplin'];
+
+          if (dbTotalTerlambat != actualTotalTerlambat ||
+              dbTotalMenit != actualTotalMenit ||
+              dbStatus != calculatedStatus) {
+            supabase.from('detail_siswa').update({
+              'total_terlambat': actualTotalTerlambat,
+              'total_menit_terlambat': actualTotalMenit,
+              'status_disiplin': calculatedStatus,
+            }).eq('user_id', userId).then((_) {}).catchError((_) {});
+          }
+        }
+
+        final activitiesList = List<Map<String, dynamic>>.from(activityResponse);
+        for (var activity in activitiesList) {
+          final userId = activity['user_id']?.toString() ??
+              (activity['profiles'] is Map ? activity['profiles']['id']?.toString() : null);
+          if (userId != null && userCalculatedLevel.containsKey(userId)) {
+            final calculatedLvl = userCalculatedLevel[userId]!;
+            final profile = activity['profiles'];
+            if (profile is Map && profile['detail_siswa'] != null) {
+              final detail = profile['detail_siswa'];
+              if (detail is List && detail.isNotEmpty) {
+                detail[0]['status_disiplin'] = calculatedLvl;
+              } else if (detail is Map) {
+                detail['status_disiplin'] = calculatedLvl;
+              }
+            }
+          }
+        }
+
         setState(() {
-          final allTasks = List<Map<String, dynamic>>.from(taskResponse);
           _pendingTaskCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu').length;
           _assignedCount = allTasks.where((d) => d['status_evaluasi'] == 'mengerjakan' || d['status_evaluasi'] == 'revisi').length;
           _submittedCount = allTasks.where((d) => d['status_evaluasi'] == 'menunggu_nilai').length;
 
-          final allStudents = List<Map<String, dynamic>>.from(studentResponse);
-          _ringanCount = allStudents.where((d) => d['status_disiplin']?.toString().toLowerCase() == 'ringan').length;
-          _sedangCount = allStudents.where((d) => d['status_disiplin']?.toString().toLowerCase() == 'sedang').length;
-          _beratCount = allStudents.where((d) {
-            final level = d['status_disiplin']?.toString().toLowerCase() ?? '';
-            return level == 'berat' || level.contains('orang tua');
-          }).length;
+          _ringanCount = ringanCount;
+          _sedangCount = sedangCount;
+          _beratCount = beratCount;
 
-          _recentActivities = List<Map<String, dynamic>>.from(activityResponse);
+          _recentActivities = activitiesList;
           _isLoadingActivities = false;
         });
       }

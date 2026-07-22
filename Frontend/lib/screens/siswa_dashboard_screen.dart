@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -159,33 +160,43 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final tempDir = Directory.systemTemp;
-
       for (int i = 0; i < pickedFiles.length; i++) {
         final pickedFile = pickedFiles[i];
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final targetPath =
-            '${tempDir.path}/compressed_${timestamp}_$i.jpg';
-
-        var result = await FlutterImageCompress.compressAndGetFile(
-          pickedFile.path,
-          targetPath,
-          quality: 60,
-        );
-
-        if (result == null) continue;
-
         final fileName =
             '${widget.authResult.userId}/${attendanceId}_${timestamp}_$i.jpg';
-        final compressedFile = File(result.path);
-        
-        await supabase.storage
-            .from('task_proofs')
-            .upload(fileName, compressedFile);
 
-        // Clean up local compressed file
-        if (await compressedFile.exists()) {
-          await compressedFile.delete();
+        if (kIsWeb) {
+          final bytes = await pickedFile.readAsBytes();
+          final compressedBytes = await FlutterImageCompress.compressWithList(
+            bytes,
+            quality: 60,
+          );
+          await supabase.storage
+              .from('task_proofs')
+              .uploadBinary(fileName, compressedBytes);
+        } else {
+          final tempDir = Directory.systemTemp;
+          final targetPath = '${tempDir.path}/compressed_${timestamp}_$i.jpg';
+
+          var result = await FlutterImageCompress.compressAndGetFile(
+            pickedFile.path,
+            targetPath,
+            quality: 60,
+          );
+
+          if (result == null) continue;
+
+          final compressedFile = File(result.path);
+
+          await supabase.storage
+              .from('task_proofs')
+              .upload(fileName, compressedFile);
+
+          // Clean up local compressed file
+          if (await compressedFile.exists()) {
+            await compressedFile.delete();
+          }
         }
 
         await supabase.from('bukti_evaluasi').insert({

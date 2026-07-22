@@ -51,6 +51,22 @@ class _DetailSiswaScreenState extends State<DetailSiswaScreen> {
               .where((e) => e['status_evaluasi'] == 'menunggu_nilai')
               .length;
 
+          final activeTardiness = _attendanceHistory.where((e) {
+            final status = e['status_evaluasi']?.toString();
+            return status != 'dibatalkan' && status != 'selesai';
+          }).toList();
+
+          final count = activeTardiness.length;
+          if (count <= 2) {
+            _tardinessLevel = 'aman';
+          } else if (count <= 4) {
+            _tardinessLevel = 'ringan';
+          } else if (count <= 6) {
+            _tardinessLevel = 'sedang';
+          } else {
+            _tardinessLevel = 'berat';
+          }
+
           _isLoading = false;
         });
       }
