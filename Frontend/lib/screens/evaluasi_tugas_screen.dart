@@ -364,7 +364,14 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
               } else if (detailList is Map) {
                 detailSiswa = Map<String, dynamic>.from(detailList);
               }
-              final attendanceId = data['id'].toString();
+               final attendanceId = data['id'].toString();
+              String rawTgl = (data['tanggal_terlambat'] ?? '').toString();
+              if (rawTgl.contains('T')) {
+                rawTgl = rawTgl.split('T')[0];
+              } else if (rawTgl.contains(' ')) {
+                rawTgl = rawTgl.split(' ')[0];
+              }
+              final displayTanggal = rawTgl.isNotEmpty ? 'Tanggal: $rawTgl' : '-';
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: _buildEvaluasiCard(
@@ -373,7 +380,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                   namaSiswa: siswa['full_name'] ?? 'Tanpa Nama',
                   tugas: data['tugas_hukuman'] ?? 'Tugas belum diberikan',
                   kelas: detailSiswa?['kelas'] ?? '-',
-                  tanggal: 'Tanggal: ${data['tanggal_terlambat']}',
+                  tanggal: displayTanggal,
                   tingkat: _capitalize(detailSiswa?['status_disiplin'] ?? 'Sedang'),
                   actionLabel: actionLabel,
                   onAction: onAction,
@@ -505,26 +512,32 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
           const SizedBox(height: 16),
           const Divider(color: AppColors.surfaceVariant),
           const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runSpacing: 12,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.access_time, size: 16, color: AppColors.outline),
-                  const SizedBox(width: 6),
-                  Text(
-                    tanggal,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.outline,
-                      fontWeight: FontWeight.w500,
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.access_time, size: 16, color: AppColors.outline),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        tanggal,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.outline,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -550,7 +563,7 @@ class _EvaluasiTugasViewState extends State<EvaluasiTugasView> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
