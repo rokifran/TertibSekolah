@@ -32,7 +32,7 @@ class TertibSekolahApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tepat Waktu',
+      title: 'Tertib Sekolah',
       theme: AppTheme.lightTheme,
       home: const LoginScreen(),
       debugShowCheckedModeBanner: false,

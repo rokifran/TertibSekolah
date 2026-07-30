@@ -945,14 +945,29 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
     if (confirm != true) return;
 
     try {
-      if (user.roleName.toLowerCase() == 'siswa') {
-        await supabase.from('detail_siswa').delete().eq('user_id', user.id);
+      final res = await supabase.functions.invoke(
+        'delete-user',
+        body: {'userId': user.id},
+      );
+
+      if (res.status != 200) {
+        String errorMessage = 'Gagal menghapus user';
+        final data = res.data;
+        if (data is Map && data.containsKey('error')) {
+          final err = data['error'];
+          if (err is Map && err.containsKey('message')) {
+            errorMessage = err['message'];
+          } else if (err is String) {
+            errorMessage = err;
+          }
+        }
+        throw Exception(errorMessage);
       }
-      await supabase.from('profiles').delete().eq('id', user.id);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('User berhasil dihapus'),
+            content: const Text('User dan akun autentikasi berhasil dihapus'),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -961,14 +976,33 @@ class _UsersBodyState extends State<_UsersBody> with SingleTickerProviderStateMi
         _fetchUsers();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus user: $e'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
+      // Fallback: Jika Edge Function belum ter-deploy, hapus dari tabel database
+      try {
+        if (user.roleName.toLowerCase() == 'siswa') {
+          await supabase.from('detail_siswa').delete().eq('user_id', user.id);
+        }
+        await supabase.from('profiles').delete().eq('id', user.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Profil dihapus dari DB, tetapi hapus Auth gagal/butuh Edge Function: ${e.toString().replaceAll('Exception: ', '')}'),
+              backgroundColor: AppColors.tertiaryContainer,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            )
+          );
+          _fetchUsers();
+        }
+      } catch (fallbackError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menghapus user: $e'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            )
+          );
+        }
       }
     }
   }
