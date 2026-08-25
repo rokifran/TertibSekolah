@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:developer';
 
 void main() async {
   final supabase = SupabaseClient(
@@ -7,18 +8,18 @@ void main() async {
   );
 
   try {
-    print('--- DETAIL SISWA ---');
+    log('--- DETAIL SISWA ---');
     final detailSiswa = await supabase.from('detail_siswa').select('user_id, kelas, nisn, status_disiplin, total_terlambat, total_menit_terlambat');
     for (var row in detailSiswa) {
-      print(row);
+      log(row.toString());
     }
 
-    print('\n--- TERLAMBAT ---');
+    log('\n--- TERLAMBAT ---');
     final terlambat = await supabase.from('terlambat').select('id, user_id, durasi_menit, status_evaluasi, tanggal_terlambat');
     for (var row in terlambat) {
-      print(row);
+      log(row.toString());
     }
   } catch (e) {
-    print('Error: $e');
+    log('Error: $e');
   }
 }
