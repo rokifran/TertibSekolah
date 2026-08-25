@@ -2,27 +2,42 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Chrome Web (dengan .env)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "env": {
+        "CHROME_EXECUTABLE": "/usr/bin/brave"
+      },
+      "args": [
+        "--dart-define-from-file=.env"
+      ]
+    },
+    {
+      "name": "Android Emulator (dengan .env)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5554",
+      "args": [
+        "--dart-define-from-file=.env"
+      ]
+    },
+    {
+      "name": "Linux Desktop (dengan .env)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "linux",
+      "args": [
+        "--dart-define-from-file=.env"
+      ]
+    },
+    {
       "name": "Debug (dengan .env)",
       "request": "launch",
       "type": "dart",
-      "args": [
-        "--dart-define-from-file=.env"
-      ]
-    },
-    {
-      "name": "Profile (dengan .env)",
-      "request": "launch",
-      "type": "dart",
-      "flutterMode": "profile",
-      "args": [
-        "--dart-define-from-file=.env"
-      ]
-    },
-    {
-      "name": "Release (dengan .env)",
-      "request": "launch",
-      "type": "dart",
-      "flutterMode": "release",
+      "env": {
+        "CHROME_EXECUTABLE": "/usr/bin/brave"
+      },
       "args": [
         "--dart-define-from-file=.env"
       ]

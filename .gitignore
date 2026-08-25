@@ -1,3 +1,165 @@
-.kilo
-.vscode
+# ==============================================================================
+# Environment Variables & Secrets
+# ==============================================================================
 .env
+.env.*
+.env*.local
+!.env.example
+!.env.template
+*.pem
+*.key
+*.keystore
+*.jks
+key.properties
+**/key.properties
+**/local.properties
+
+# ==============================================================================
+# Supabase Local & CLI Cache
+# ==============================================================================
+supabase/.temp/
+supabase/.branches/
+.temp/
+.branches/
+
+# ==============================================================================
+# Dart & Flutter
+# ==============================================================================
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+.packages
+**/.packages
+.pub-cache/
+**/.pub-cache/
+.pub/
+**/.pub/
+build/
+**/build/
+coverage/
+**/coverage/
+doc/api/
+**/doc/api/
+app.*.symbols
+app.*.map.json
+
+# ==============================================================================
+# Android
+# ==============================================================================
+**/.gradle/
+**/.kotlin/
+**/captures/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/app/build/
+**/android/.cxx/
+**/GeneratedPluginRegistrant.java
+*.apk
+*.aab
+*.dex
+
+# ==============================================================================
+# iOS & macOS
+# ==============================================================================
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.framework
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/Pods/
+**/.symlinks/
+**/xcuserdata/
+**/DerivedData/
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
+**/Runner/GeneratedPluginRegistrant.*
+**/GeneratedPluginRegistrant.swift
+
+# ==============================================================================
+# Linux & Windows Desktop
+# ==============================================================================
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/windows/*.suo
+**/windows/*.user
+**/windows/*.userosscache
+**/windows/*.sln.docstates
+**/x64/
+**/x86/
+CMakeCache.txt
+CMakeFiles/
+
+# ==============================================================================
+# Node, Deno & Edge Functions
+# ==============================================================================
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ==============================================================================
+# IDEs & Code Editors
+# ==============================================================================
+# VS Code (ignore user/machine settings, preserve shared launch/tasks)
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+**/.vscode/*
+!**/.vscode/launch.json
+!**/.vscode/tasks.json
+!**/.vscode/extensions.json
+
+# JetBrains / Android Studio
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.ipr
+*.iws
+
+# Kilo, Cursor & Fleet
+.kilo/
+**/.kilo/
+.cursor/
+**/.cursor/
+.fleet/
+**/.fleet/
+
+# Sublime & Other Editors
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# Operating System & Logs
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+*.tmp
+*.bak

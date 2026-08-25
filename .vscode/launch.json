@@ -2,30 +2,46 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Frontend (Debug)",
+            "name": "Frontend (Chrome Web)",
             "cwd": "Frontend",
             "request": "launch",
             "type": "dart",
+            "deviceId": "chrome",
+            "env": {
+                "CHROME_EXECUTABLE": "/usr/bin/brave"
+            },
             "args": [
                 "--dart-define-from-file=.env"
             ]
         },
         {
-            "name": "Frontend (Profile)",
+            "name": "Frontend (Android Emulator)",
             "cwd": "Frontend",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile",
+            "deviceId": "emulator-5554",
             "args": [
                 "--dart-define-from-file=.env"
             ]
         },
         {
-            "name": "Frontend (Release)",
+            "name": "Frontend (Linux Desktop)",
             "cwd": "Frontend",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release",
+            "deviceId": "linux",
+            "args": [
+                "--dart-define-from-file=.env"
+            ]
+        },
+        {
+            "name": "Frontend (Auto Select Device)",
+            "cwd": "Frontend",
+            "request": "launch",
+            "type": "dart",
+            "env": {
+                "CHROME_EXECUTABLE": "/usr/bin/brave"
+            },
             "args": [
                 "--dart-define-from-file=.env"
             ]
