@@ -1,0 +1,486 @@
+{
+  "backup_metadata": {
+    "project_id": "gaiagxlmtancqreovmai",
+    "project_name": "TertibSekolahV2",
+    "backup_timestamp": "2026-08-25T23:32:00Z",
+    "description": "Pre-migration backup before decision tree migration"
+  },
+  "tables": {
+    "profiles": [
+      {
+        "id": "5fabbf17-31f3-4759-8e47-9bafadbf7e1b",
+        "full_name": null,
+        "avatar_url": null,
+        "created_at": "2026-07-05T17:05:25.76516+00:00",
+        "updated_at": "2026-07-05T17:05:25.76516+00:00",
+        "email": "admin@example.com",
+        "role": "admin"
+      },
+      {
+        "id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "full_name": "Siswa Test Example",
+        "avatar_url": null,
+        "created_at": "2026-07-06T13:34:45.231392+00:00",
+        "updated_at": "2026-07-06T13:34:45.231392+00:00",
+        "email": "siswa@example.com",
+        "role": "siswa"
+      },
+      {
+        "id": "258d360d-d70b-4d6d-bb27-0b77f015a5cd",
+        "full_name": "robby",
+        "avatar_url": null,
+        "created_at": "2026-07-13T12:51:04.376335+00:00",
+        "updated_at": "2026-07-13T12:51:04.376335+00:00",
+        "email": "robby@gmail.com",
+        "role": "siswa"
+      },
+      {
+        "id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "full_name": "guru",
+        "avatar_url": null,
+        "created_at": "2026-07-13T13:38:33.85125+00:00",
+        "updated_at": "2026-07-13T13:38:33.85125+00:00",
+        "email": "guru@test.com",
+        "role": "guru"
+      },
+      {
+        "id": "ef36c100-e6db-49a2-8b6c-07d7c3726d0f",
+        "full_name": "guru example",
+        "avatar_url": null,
+        "created_at": "2026-07-22T18:25:05.159422+00:00",
+        "updated_at": "2026-07-22T18:25:05.159422+00:00",
+        "email": "guru@example.com",
+        "role": "guru"
+      },
+      {
+        "id": "93279a8e-7404-4830-a4fe-30f1b0c6ee43",
+        "full_name": "mimi komaling",
+        "avatar_url": null,
+        "created_at": "2026-07-30T07:23:03.193833+00:00",
+        "updated_at": "2026-07-30T07:23:03.193833+00:00",
+        "email": "mimikomaling@gmail.com",
+        "role": "guru"
+      },
+      {
+        "id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "full_name": "dwiki masuara",
+        "avatar_url": null,
+        "created_at": "2026-07-30T07:25:15.85148+00:00",
+        "updated_at": "2026-07-30T07:25:15.85148+00:00",
+        "email": "dwikimasuara@gmail.com",
+        "role": "siswa"
+      },
+      {
+        "id": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf",
+        "full_name": "Tiara Tehamen",
+        "avatar_url": null,
+        "created_at": "2026-08-10T09:50:12.314736+00:00",
+        "updated_at": "2026-08-10T09:50:12.314736+00:00",
+        "email": "tiaratehamen@gmail.com",
+        "role": "siswa"
+      }
+    ],
+    "detail_siswa": [
+      {
+        "id": "5361ae8d-4f61-4fba-92da-e6fca505f293",
+        "user_id": "258d360d-d70b-4d6d-bb27-0b77f015a5cd",
+        "kelas": null,
+        "nisn": null,
+        "total_terlambat": 0,
+        "total_menit_terlambat": 0,
+        "status_disiplin": "aman",
+        "created_at": "2026-07-13T12:51:04.508762+00:00",
+        "updated_at": "2026-07-13T12:51:04.508762+00:00"
+      },
+      {
+        "id": "1382d42a-6929-4003-9d2f-5d89a3d88686",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "kelas": "X IPA 1",
+        "nisn": "123123",
+        "total_terlambat": 2,
+        "total_menit_terlambat": 183,
+        "status_disiplin": "aman",
+        "created_at": "2026-07-06T13:34:45.422439+00:00",
+        "updated_at": "2026-07-06T13:34:45.422439+00:00"
+      },
+      {
+        "id": "75f9d072-0c32-437f-985e-5d5134a5be86",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "kelas": "kelas 9A",
+        "nisn": "11223344",
+        "total_terlambat": 0,
+        "total_menit_terlambat": 0,
+        "status_disiplin": "aman",
+        "created_at": "2026-07-30T07:25:16.031038+00:00",
+        "updated_at": "2026-07-30T07:25:16.031038+00:00"
+      },
+      {
+        "id": "3bd08ad1-9a88-441a-965e-14dd2b257fb9",
+        "user_id": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf",
+        "kelas": "8A",
+        "nisn": "10101029",
+        "total_terlambat": 0,
+        "total_menit_terlambat": 0,
+        "status_disiplin": "aman",
+        "created_at": "2026-08-10T09:50:12.462485+00:00",
+        "updated_at": "2026-08-10T09:50:12.462485+00:00"
+      }
+    ],
+    "terlambat": [
+      {
+        "id": "cf609746-10ec-4984-91fc-aab53e3c2922",
+        "user_id": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf",
+        "tanggal_terlambat": "2026-08-11",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buatkan rangkuman tentang ....",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 50,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": "macet di jalan",
+        "hasil_validasi": "Tidak Lulus",
+        "created_at": "2026-08-10T09:53:35.956703+00:00",
+        "updated_at": "2026-08-10T09:53:35.956703+00:00"
+      },
+      {
+        "id": "4336ed6a-40a7-4383-aae5-471b556f19e6",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-23",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 34,
+        "tugas_hukuman": "sjsjjj",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": "awd",
+        "hasil_validasi": null,
+        "created_at": "2026-07-22T16:12:16.389548+00:00",
+        "updated_at": "2026-07-22T16:12:16.389548+00:00"
+      },
+      {
+        "id": "fc37a545-0d82-4376-9b75-0239debacf23",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-14",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 12,
+        "tugas_hukuman": "makan",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 89,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-07-13T17:21:18.799963+00:00",
+        "updated_at": "2026-07-13T17:21:18.799963+00:00"
+      },
+      {
+        "id": "833d1c78-3a55-42c1-a91d-f0209989b9fd",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-13",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "tidur",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 100,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-07-13T16:31:18.095521+00:00",
+        "updated_at": "2026-07-13T16:31:18.095521+00:00"
+      },
+      {
+        "id": "cd31ea86-2997-417d-857b-80bd975f062a",
+        "user_id": "258d360d-d70b-4d6d-bb27-0b77f015a5cd",
+        "tanggal_terlambat": "2026-07-14",
+        "status_evaluasi": "menunggu",
+        "durasi_menit": 65,
+        "tugas_hukuman": "Tugas Berat",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-07-14T11:19:01.715889+00:00",
+        "updated_at": "2026-07-14T11:19:01.715889+00:00"
+      },
+      {
+        "id": "11a2a157-12f2-4583-a08c-a719205e8334",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-14",
+        "status_evaluasi": "menunggu",
+        "durasi_menit": 60,
+        "tugas_hukuman": "Tugas Berat",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-07-14T14:09:38.310563+00:00",
+        "updated_at": "2026-07-14T14:09:38.310563+00:00"
+      },
+      {
+        "id": "98139776-55f9-4e45-8432-df7be4e9693a",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-14",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 123,
+        "tugas_hukuman": "tidur",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-07-14T14:20:15.617288+00:00",
+        "updated_at": "2026-07-14T14:20:15.617288+00:00"
+      },
+      {
+        "id": "eace86c8-6abc-42b7-b219-57d01d990961",
+        "user_id": "7cff2172-9700-42d3-8a3f-9712bb96e827",
+        "tanggal_terlambat": "2026-07-23",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 12,
+        "tugas_hukuman": "awd",
+        "evaluator_id": "ef36c100-e6db-49a2-8b6c-07d7c3726d0f",
+        "nilai": 100,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": "sd",
+        "hasil_validasi": null,
+        "created_at": "2026-07-22T16:10:50.63733+00:00",
+        "updated_at": "2026-07-22T16:10:50.63733+00:00"
+      },
+      {
+        "id": "d1ae361e-b81b-4a18-a7ab-cba390fab47e",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "tanggal_terlambat": "2026-08-05",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 15,
+        "tugas_hukuman": "makan",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-08-05T12:31:13.800621+00:00",
+        "updated_at": "2026-08-05T12:31:13.800621+00:00"
+      },
+      {
+        "id": "6332fc8a-520c-4687-97c4-5ac48ec72022",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "tanggal_terlambat": "2026-08-10",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buat gambar ",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 90,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": "terlambat bangun",
+        "hasil_validasi": null,
+        "created_at": "2026-08-10T07:50:12.812301+00:00",
+        "updated_at": "2026-08-10T07:50:12.812301+00:00"
+      },
+      {
+        "id": "6babe17f-1099-4377-ba55-393873b00852",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "tanggal_terlambat": "2026-08-10",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buat kan karangan",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-08-10T07:58:34.653908+00:00",
+        "updated_at": "2026-08-10T07:58:34.653908+00:00"
+      },
+      {
+        "id": "a481d008-ce24-4679-bed6-b90945864cf2",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "tanggal_terlambat": "2026-08-10",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buat kan rangkuman",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 90,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": "Lulus",
+        "created_at": "2026-08-10T08:57:53.611047+00:00",
+        "updated_at": "2026-08-10T08:57:53.611047+00:00"
+      },
+      {
+        "id": "b485858f-8850-4bb1-9876-1eba9aee8e3f",
+        "user_id": "08129954-ddef-478e-a35f-b8c65c3c6cf5",
+        "tanggal_terlambat": "2026-08-10",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buat poster tentang kemerdekaan republik indonesia",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 80,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": "Lulus",
+        "created_at": "2026-08-10T09:23:09.71681+00:00",
+        "updated_at": "2026-08-10T09:23:09.71681+00:00"
+      },
+      {
+        "id": "4d2cdc08-4870-4c41-a50b-1a3322434cc5",
+        "user_id": null,
+        "tanggal_terlambat": "2026-08-04",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buatkan makalah olahraga",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 85,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-08-04T07:22:32.365238+00:00",
+        "updated_at": "2026-08-04T07:22:32.365238+00:00"
+      },
+      {
+        "id": "24f2577f-bfa7-4923-ab4e-8a886b310cec",
+        "user_id": null,
+        "tanggal_terlambat": "2026-08-05",
+        "status_evaluasi": "mengerjakan",
+        "durasi_menit": 15,
+        "tugas_hukuman": "coli",
+        "evaluator_id": null,
+        "nilai": null,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": null,
+        "hasil_validasi": null,
+        "created_at": "2026-08-05T12:32:32.9612+00:00",
+        "updated_at": "2026-08-05T12:32:32.9612+00:00"
+      },
+      {
+        "id": "997ade24-b382-49db-abfa-a5247ecf465f",
+        "user_id": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf",
+        "tanggal_terlambat": "2026-08-10",
+        "status_evaluasi": "selesai",
+        "durasi_menit": 15,
+        "tugas_hukuman": "buatkan poster bagaimana menjadi siswa teladan disekolah",
+        "evaluator_id": "aea215f0-ea42-4c98-b19b-1c0ff09fc992",
+        "nilai": 90,
+        "kelengkapan": null,
+        "kesesuaian": null,
+        "alasan": "terlambat bangun pagi",
+        "hasil_validasi": "Lulus",
+        "created_at": "2026-08-10T09:50:59.900286+00:00",
+        "updated_at": "2026-08-10T09:50:59.900286+00:00"
+      }
+    ],
+    "bukti_evaluasi": [
+      {
+        "id": 1,
+        "terlambat_id": "833d1c78-3a55-42c1-a91d-f0209989b9fd",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/833d1c78-3a55-42c1-a91d-f0209989b9fd_1783962586474.jpg",
+        "created_at": "2026-07-13T17:09:50.133019+00:00"
+      },
+      {
+        "id": 2,
+        "terlambat_id": "833d1c78-3a55-42c1-a91d-f0209989b9fd",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/833d1c78-3a55-42c1-a91d-f0209989b9fd_1783963212320_0.jpg",
+        "created_at": "2026-07-13T17:20:13.99866+00:00"
+      },
+      {
+        "id": 3,
+        "terlambat_id": "833d1c78-3a55-42c1-a91d-f0209989b9fd",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/833d1c78-3a55-42c1-a91d-f0209989b9fd_1783963212836_1.jpg",
+        "created_at": "2026-07-13T17:20:15.308028+00:00"
+      },
+      {
+        "id": 4,
+        "terlambat_id": "fc37a545-0d82-4376-9b75-0239debacf23",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/fc37a545-0d82-4376-9b75-0239debacf23_1783963322207_0.jpg",
+        "created_at": "2026-07-13T17:22:04.009394+00:00"
+      },
+      {
+        "id": 5,
+        "terlambat_id": "fc37a545-0d82-4376-9b75-0239debacf23",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/fc37a545-0d82-4376-9b75-0239debacf23_1783963322840_1.jpg",
+        "created_at": "2026-07-13T17:22:04.41463+00:00"
+      },
+      {
+        "id": 6,
+        "terlambat_id": "eace86c8-6abc-42b7-b219-57d01d990961",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/eace86c8-6abc-42b7-b219-57d01d990961_1784739570519_0.jpg",
+        "created_at": "2026-07-22T16:59:31.365529+00:00"
+      },
+      {
+        "id": 7,
+        "terlambat_id": "eace86c8-6abc-42b7-b219-57d01d990961",
+        "photo_path": "7cff2172-9700-42d3-8a3f-9712bb96e827/eace86c8-6abc-42b7-b219-57d01d990961_1784739582680_0.jpg",
+        "created_at": "2026-07-22T16:59:43.576446+00:00"
+      },
+      {
+        "id": 8,
+        "terlambat_id": "4d2cdc08-4870-4c41-a50b-1a3322434cc5",
+        "photo_path": "7a063eb0-bc9d-4ddc-81ec-e78ff068c7fd/4d2cdc08-4870-4c41-a50b-1a3322434cc5_1785828243094_0.jpg",
+        "created_at": "2026-08-04T07:24:04.265828+00:00"
+      },
+      {
+        "id": 9,
+        "terlambat_id": "24f2577f-bfa7-4923-ab4e-8a886b310cec",
+        "photo_path": "7a063eb0-bc9d-4ddc-81ec-e78ff068c7fd/24f2577f-bfa7-4923-ab4e-8a886b310cec_1785933248625_0.jpg",
+        "created_at": "2026-08-05T12:34:10.450186+00:00"
+      },
+      {
+        "id": 10,
+        "terlambat_id": "6332fc8a-520c-4687-97c4-5ac48ec72022",
+        "photo_path": "08129954-ddef-478e-a35f-b8c65c3c6cf5/6332fc8a-520c-4687-97c4-5ac48ec72022_1786348318133_0.jpg",
+        "created_at": "2026-08-10T07:51:50.509111+00:00"
+      },
+      {
+        "id": 11,
+        "terlambat_id": "6babe17f-1099-4377-ba55-393873b00852",
+        "photo_path": "08129954-ddef-478e-a35f-b8c65c3c6cf5/6babe17f-1099-4377-ba55-393873b00852_1786348783500_0.jpg",
+        "created_at": "2026-08-10T07:59:34.672516+00:00"
+      },
+      {
+        "id": 12,
+        "terlambat_id": "a481d008-ce24-4679-bed6-b90945864cf2",
+        "photo_path": "08129954-ddef-478e-a35f-b8c65c3c6cf5/a481d008-ce24-4679-bed6-b90945864cf2_1786352988103_0.jpg",
+        "created_at": "2026-08-10T09:09:40.068647+00:00"
+      },
+      {
+        "id": 13,
+        "terlambat_id": "b485858f-8850-4bb1-9876-1eba9aee8e3f",
+        "photo_path": "08129954-ddef-478e-a35f-b8c65c3c6cf5/b485858f-8850-4bb1-9876-1eba9aee8e3f_1786353867522_0.jpg",
+        "created_at": "2026-08-10T09:24:20.208482+00:00"
+      },
+      {
+        "id": 14,
+        "terlambat_id": "b485858f-8850-4bb1-9876-1eba9aee8e3f",
+        "photo_path": "08129954-ddef-478e-a35f-b8c65c3c6cf5/b485858f-8850-4bb1-9876-1eba9aee8e3f_1786353968926_0.jpg",
+        "created_at": "2026-08-10T09:26:01.148763+00:00"
+      },
+      {
+        "id": 15,
+        "terlambat_id": "997ade24-b382-49db-abfa-a5247ecf465f",
+        "photo_path": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf/997ade24-b382-49db-abfa-a5247ecf465f_1786355545567_0.jpg",
+        "created_at": "2026-08-10T09:52:17.221181+00:00"
+      },
+      {
+        "id": 16,
+        "terlambat_id": "cf609746-10ec-4984-91fc-aab53e3c2922",
+        "photo_path": "0e9f65c1-eb0e-47d4-8169-82127f32b3bf/cf609746-10ec-4984-91fc-aab53e3c2922_1786355697881_0.jpg",
+        "created_at": "2026-08-10T09:54:49.058281+00:00"
+      }
+    ]
+  }
+}

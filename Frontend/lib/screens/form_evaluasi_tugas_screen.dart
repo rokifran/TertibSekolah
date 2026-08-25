@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/decision_tree_service.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
 
@@ -25,9 +27,18 @@ class FormEvaluasiTugasScreen extends StatefulWidget {
 class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
   final _scoreController = TextEditingController();
 
+  // ── Existing state ────────────────────────────────────────────────────────
   bool _isLoadingHistory = true;
   List<Map<String, dynamic>> _lateHistory = [];
   List<String> _evidencePhotos = [];
+
+  // ── Decision Tree state ───────────────────────────────────────────────────
+  bool? _kelengkapan; // true = lengkap, false = tidak lengkap
+  bool? _kesesuaian; // true = sesuai,   false = tidak sesuai
+  String? _keputusanGuru; // 'selesai' | 'revisi'
+  DecisionTreePrediction? _prediction;
+  bool _isPredicting = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -50,15 +61,11 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           if (buktiList is List) {
             for (final bukti in buktiList) {
               final path = bukti['photo_path'];
-              if (path != null) {
-                _evidencePhotos.add(path);
-              }
+              if (path != null) _evidencePhotos.add(path);
             }
           } else if (buktiList is Map) {
             final path = buktiList['photo_path'];
-            if (path != null) {
-              _evidencePhotos.add(path);
-            }
+            if (path != null) _evidencePhotos.add(path);
           }
           _lateHistory = [response];
           _isLoadingHistory = false;
@@ -66,21 +73,184 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingHistory = false;
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal memuat tugas: $e')));
+        setState(() => _isLoadingHistory = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat tugas: $e')),
+        );
       }
     }
   }
+
+  // ── Decision Tree: minta prediksi ─────────────────────────────────────────
+
+  Future<void> _getPrediction() async {
+    final score = int.tryParse(_scoreController.text);
+    if (score == null || score < 0 || score > 100) {
+      _showError('Masukkan nilai yang valid (0-100) terlebih dahulu.');
+      return;
+    }
+    if (_kelengkapan == null) {
+      _showError('Pilih status kelengkapan bukti terlebih dahulu.');
+      return;
+    }
+    if (_kesesuaian == null) {
+      _showError('Pilih status kesesuaian tugas terlebih dahulu.');
+      return;
+    }
+
+    setState(() {
+      _isPredicting = true;
+      _prediction = null;
+    });
+
+    try {
+      final result = await DecisionTreeService.predict(
+        nilai: score,
+        kelengkapan: _kelengkapan!,
+        kesesuaian: _kesesuaian!,
+      );
+      if (mounted) setState(() => _prediction = result);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mendapat prediksi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPredicting = false);
+    }
+  }
+
+  // ── Simpan evaluasi ───────────────────────────────────────────────────────
+
+  Future<void> _simpanEvaluasi() async {
+    // Validasi input
+    final score = int.tryParse(_scoreController.text);
+    if (score == null || score < 0 || score > 100) {
+      _showError('Nilai harus berupa angka antara 0 dan 100.');
+      return;
+    }
+    if (_kelengkapan == null) {
+      _showError('Pilih status kelengkapan bukti.');
+      return;
+    }
+    if (_kesesuaian == null) {
+      _showError('Pilih status kesesuaian tugas.');
+      return;
+    }
+    if (_keputusanGuru == null) {
+      _showError('Pilih keputusan final Anda (Selesai atau Revisi).');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await DecisionTreeService.submitEvaluation(
+        terlambatId: widget.attendanceId,
+        nilai: score,
+        kelengkapan: _kelengkapan!,
+        kesesuaian: _kesesuaian!,
+        keputusanGuru: _keputusanGuru!,
+        prediksiModel: _prediction?.prediksi,
+        predictionConfidence: _prediction?.confidence,
+        modelVersion: _prediction?.modelVersion,
+      );
+
+      if (!mounted) return;
+
+      // Tampilkan disagreement jika ada model aktif & prediksi berbeda
+      final prediksi = _prediction;
+      if (prediksi != null &&
+          prediksi.modelActive &&
+          prediksi.prediksi != null &&
+          prediksi.prediksi != _keputusanGuru) {
+        _showDisagreementInfo(
+          prediksiModel: prediksi.prediksi!,
+          keputusanGuru: _keputusanGuru!,
+        );
+      } else {
+        final label = _keputusanGuru == 'selesai' ? 'Selesai' : 'Revisi';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Evaluasi disimpan. Status: $label')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan evaluasi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showDisagreementInfo({
+    required String prediksiModel,
+    required String keputusanGuru,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Override Model Tercatat'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow('Prediksi model', _capitalize(prediksiModel)),
+            _infoRow('Keputusan guru', _capitalize(keputusanGuru)),
+            const SizedBox(height: 8),
+            const Text(
+              'Override guru telah tercatat. Data disagreement ini penting '
+              'untuk pembahasan hasil penelitian.',
+              style: TextStyle(fontSize: 13, color: AppColors.outline),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Text('$label : ',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(value),
+          ],
+        ),
+      );
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
     _scoreController.dispose();
     super.dispose();
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +288,8 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       bottomNavigationBar: _buildBottomBar(),
     );
   }
+
+  // ── Widgets ───────────────────────────────────────────────────────────────
 
   Widget _buildStudentInfo() {
     return Container(
@@ -328,7 +500,8 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                               width: 120,
                               color: AppColors.surfaceContainerHigh,
                               alignment: Alignment.center,
-                              child: const Icon(Icons.broken_image, color: AppColors.error),
+                              child: const Icon(Icons.broken_image,
+                                  color: AppColors.error),
                             ),
                           ),
                         ),
@@ -389,9 +562,9 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
                     }
                   }
                 }
@@ -448,6 +621,8 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
     );
   }
 
+  // ── Formulir Evaluasi (baru dengan Decision Tree) ─────────────────────────
+
   Widget _buildEvaluationForm() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -468,8 +643,10 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // 1. Nilai tugas
           const Text(
-            'Nilai Tugas',
+            'Nilai Tugas (0–100)',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -480,21 +657,24 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
           TextField(
             controller: _scoreController,
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) {
+              // Reset prediksi jika input berubah
+              if (_prediction != null) setState(() => _prediction = null);
+            },
             decoration: InputDecoration(
               hintText: 'Masukkan nilai (0-100)',
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
+                borderSide:
+                    const BorderSide(color: AppColors.surfaceContainerHigh),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: AppColors.surfaceContainerHigh,
-                ),
+                borderSide:
+                    const BorderSide(color: AppColors.surfaceContainerHigh),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -502,10 +682,234 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 20),
+
+          // 2. Kelengkapan bukti
+          const Text(
+            'Kelengkapan Bukti',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onBackground,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildToggleRow(
+            selected: _kelengkapan,
+            trueLabel: 'Lengkap',
+            falseLabel: 'Tidak Lengkap',
+            onChanged: (val) {
+              setState(() {
+                _kelengkapan = val;
+                _prediction = null;
+              });
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // 3. Kesesuaian tugas
+          const Text(
+            'Kesesuaian Tugas',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onBackground,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildToggleRow(
+            selected: _kesesuaian,
+            trueLabel: 'Sesuai',
+            falseLabel: 'Tidak Sesuai',
+            onChanged: (val) {
+              setState(() {
+                _kesesuaian = val;
+                _prediction = null;
+              });
+            },
+          ),
+          const SizedBox(height: 24),
+
+          // 4. Tombol Rekomendasi Decision Tree
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isPredicting ? null : _getPrediction,
+              icon: _isPredicting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 18),
+              label: Text(
+                _isPredicting
+                    ? 'Memproses...'
+                    : 'Dapatkan Rekomendasi Decision Tree',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+
+          // 5. Card hasil prediksi
+          if (_prediction != null) ...[
+            const SizedBox(height: 16),
+            _buildPredictionCard(_prediction!),
+          ],
+
+          const SizedBox(height: 24),
+
+          // 6. Keputusan guru
+          const Text(
+            'Keputusan Guru',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.onBackground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Keputusan akhir sepenuhnya berada di tangan guru.',
+            style: TextStyle(fontSize: 12, color: AppColors.outline),
+          ),
+          const SizedBox(height: 8),
+          _buildToggleRow(
+            selected: _keputusanGuru == null
+                ? null
+                : _keputusanGuru == 'selesai',
+            trueLabel: 'Selesai',
+            falseLabel: 'Revisi',
+            onChanged: (val) {
+              setState(() => _keputusanGuru = val ? 'selesai' : 'revisi');
+            },
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildToggleRow({
+    required bool? selected,
+    required String trueLabel,
+    required String falseLabel,
+    required void Function(bool) onChanged,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ToggleChip(
+            label: trueLabel,
+            isSelected: selected == true,
+            onTap: () => onChanged(true),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ToggleChip(
+            label: falseLabel,
+            isSelected: selected == false,
+            isNegative: true,
+            onTap: () => onChanged(false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPredictionCard(DecisionTreePrediction pred) {
+    if (!pred.modelActive) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainer,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline, color: AppColors.outline, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Belum ada model aktif. Evaluasi disimpan sebagai data manual '
+                'untuk pembentukan dataset awal penelitian.',
+                style: TextStyle(fontSize: 13, color: AppColors.outline),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isSelesai = pred.prediksi == 'selesai';
+    final color = isSelesai ? AppColors.primary : AppColors.error;
+    final label = isSelesai ? 'Selesai' : 'Revisi';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isSelesai ? Icons.check_circle_outline : Icons.loop,
+                color: color,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Rekomendasi Decision Tree: $label',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          if (pred.confidencePersen != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Confidence: ${pred.confidencePersen}%',
+              style: const TextStyle(fontSize: 13, color: AppColors.outline),
+            ),
+          ],
+          if (pred.modelVersion != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Model: ${pred.modelVersion}',
+              style: const TextStyle(fontSize: 12, color: AppColors.outline),
+            ),
+          ],
+          const SizedBox(height: 8),
+          const Text(
+            'Rekomendasi sistem — keputusan akhir tetap oleh guru.',
+            style: TextStyle(
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              color: AppColors.outline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom bar ────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar() {
     return Container(
@@ -516,68 +920,7 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
       ),
       child: SafeArea(
         child: FilledButton(
-          onPressed: () async {
-            if (_scoreController.text.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Harap masukkan nilai evaluasi'),
-                ),
-              );
-              return;
-            }
-
-            try {
-              int score = int.tryParse(_scoreController.text) ?? 0;
-              bool isLulus = score >= 75;
-
-              if (isLulus) {
-                await supabase
-                    .from('terlambat')
-                    .update({
-                      'nilai': score,
-                      'evaluator_id': supabase.auth.currentUser!.id,
-                      'status_evaluasi': 'selesai',
-                    })
-                    .eq('id', widget.attendanceId);
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Siswa LULUS. Status menjadi Tuntas.'),
-                    ),
-                  );
-                  Navigator.pop(context);
-                }
-              } else {
-                await supabase
-                    .from('bukti_evaluasi')
-                    .delete()
-                    .eq('terlambat_id', widget.attendanceId);
-
-                await supabase
-                    .from('terlambat')
-                    .update({'status_evaluasi': 'mengerjakan'})
-                    .eq('id', widget.attendanceId);
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Siswa TIDAK LULUS. Siswa harus mengerjakan ulang.',
-                      ),
-                    ),
-                  );
-                  Navigator.pop(context);
-                }
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menyimpan evaluasi: $e')),
-                );
-              }
-            }
-          },
+          onPressed: _isSubmitting ? null : _simpanEvaluasi,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.onPrimary,
@@ -586,9 +929,67 @@ class _FormEvaluasiTugasScreenState extends State<FormEvaluasiTugasScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: const Text(
-            'Simpan Evaluasi',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          child: _isSubmitting
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  'Simpan Evaluasi',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Reusable ToggleChip ────────────────────────────────────────────────────
+
+class _ToggleChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isNegative;
+  final VoidCallback onTap;
+
+  const _ToggleChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.isNegative = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = isNegative ? AppColors.error : AppColors.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? activeColor.withValues(alpha: 0.12)
+              : AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? activeColor : AppColors.outlineVariant,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight:
+                isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? activeColor : AppColors.outline,
           ),
         ),
       ),
