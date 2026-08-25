@@ -163,3 +163,24 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+# Added by code-review-graph
+.code-review-graph/
+
+# ==============================================================================
+# AI Coding Assistants & Configurations
+# ==============================================================================
+.claude/
+.codebuddy/
+.cursorrules
+.gemini/
+.github/
+.kiro/
+.mcp.json
+.qoder/
+.windsurfrules
+AGENTS.md
+CLAUDE.md
+CODEBUDDY.md
+GEMINI.md
+QODER.md
+opencode.jsonc
