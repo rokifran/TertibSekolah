@@ -396,5 +396,5 @@ Dokumentasi teknis lengkap tersedia di folder [`Docs/`](./Docs/):
 | Platform | Android, iOS, Web, Linux, macOS, Windows |
 | Bahasa | Dart (Flutter) · TypeScript (Edge Functions) · Python (ML) |
 | Database | PostgreSQL 17 via Supabase |
-| Supabase Project | TertibSekolahV2 (`gaiagxlmtancqreovmai`) |
+| Supabase Project | ******** |
 | Region | Asia Pacific — Singapore |
