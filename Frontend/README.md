@@ -321,8 +321,8 @@ Ikuti langkah-langkah berikut untuk menjalankan frontend aplikasi Flutter secara
 3. **Konfigurasi Variabel Lingkungan**:
    Buat file `.env` di dalam folder `Frontend/` (gunakan `.env.example` sebagai acuan) lalu isi dengan kredensial Supabase Anda:
    ```env
-   SUPABASE_URL="https://alamat-proyek-anda.supabase.co"
-   SUPABASE_ANON_KEY="token-anon-key-supabse-anda"
+   SUPABASE_URL="https://your_project_id.supabase.co"
+   SUPABASE_ANON_KEY="your_anon_key_here"
    ```
 4. **Jalankan Aplikasi**:
    Pastikan emulator atau perangkat fisik Anda telah terhubung, lalu jalankan perintah:

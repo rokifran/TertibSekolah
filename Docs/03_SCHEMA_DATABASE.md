@@ -40,16 +40,42 @@
                                │  nilai (int)                      │
                                │  hasil_validasi (text)            │
                                │  created_at | updated_at          │
-                               └───────────────┬───────────────────┘
-                                               │ FK: terlambat_id
-                                               ▼
-                               ┌───────────────────────────────────┐
-                               │       public.bukti_evaluasi       │
-                               │  id (bigint) PK                   │
-                               │  terlambat_id (uuid) FK           │
-                               │  photo_path (varchar)             │
-                               │  created_at                       │
-                               └───────────────────────────────────┘
+                               └───────────┬───────────────────────┘
+                                           │
+                      ┌────────────────────┴──────────────────┐
+                      │ FK: terlambat_id                      │ FK: terlambat_id
+                      ▼                                       ▼
+       ┌───────────────────────────────────┐  ┌──────────────────────────────────────┐
+       │       public.bukti_evaluasi       │  │        public.evaluasi_tugas          │
+       │  id (bigint) PK                   │  │  id (uuid) PK                        │
+       │  terlambat_id (uuid) FK           │  │  terlambat_id (uuid) FK              │
+       │  photo_path (varchar)             │  │  evaluator_id (uuid) FK → profiles   │
+       │  created_at                       │  │  nilai (smallint)                    │
+       └───────────────────────────────────┘  │  kelengkapan (boolean)               │
+                                              │  kesesuaian (boolean)                │
+                                              │  keputusan_guru (varchar)            │
+                                              │  prediksi_model (varchar)            │
+                                              │  prediction_confidence (numeric)     │
+                                              │  model_version (varchar) FK          │
+                                              │  decision_source (varchar)           │
+                                              │  created_at                          │
+                                              └──────────────────────────────────────┘
+                                                            │ FK: model_version
+                                                            ▼
+                                              ┌──────────────────────────────────────┐
+                                              │     public.decision_tree_models       │
+                                              │  version (varchar) PK                │
+                                              │  tree_json (jsonb)                   │
+                                              │  feature_names (text[])              │
+                                              │  metrics (jsonb)                     │
+                                              │  training_rows (integer)             │
+                                              │  criterion (varchar)                 │
+                                              │  max_depth (integer)                 │
+                                              │  random_state (integer)              │
+                                              │  trained_at (timestamptz)            │
+                                              │  is_active (boolean)                 │
+                                              │  notes (text)                        │
+                                              └──────────────────────────────────────┘
 ```
 
 ---
@@ -138,7 +164,94 @@ Bukti foto pengerjaan tugas yang diupload oleh siswa.
 
 ---
 
-## 3. Foreign Key Constraints
+### 2.5 `public.evaluasi_tugas` *(Baru — migrasi 20260825)*
+
+Histori setiap kejadian evaluasi tugas oleh guru. Tabel **append-only** — tidak ada UPDATE/DELETE dari client. Berfungsi sebagai dataset training Decision Tree dan audit trail.
+
+| Kolom | Tipe Data | Nullable | Default | Keterangan |
+|-------|-----------|----------|---------|------------|
+| `id` | uuid | NOT NULL | `gen_random_uuid()` | PK |
+| `terlambat_id` | uuid | NOT NULL | — | FK → terlambat.id (ON DELETE CASCADE) |
+| `evaluator_id` | uuid | NOT NULL | — | FK → profiles.id (guru/admin yang menilai) |
+| `nilai` | smallint | NOT NULL | — | Nilai tugas (0–100) |
+| `kelengkapan` | boolean | NOT NULL | — | Apakah tugas lengkap |
+| `kesesuaian` | boolean | NOT NULL | — | Apakah tugas sesuai instruksi |
+| `keputusan_guru` | varchar(16) | NOT NULL | — | Keputusan akhir: `selesai` atau `revisi` |
+| `prediksi_model` | varchar(16) | YES | — | Prediksi AI: `selesai` atau `revisi` (null jika manual) |
+| `prediction_confidence` | numeric(6,5) | YES | — | Confidence prediksi AI (0.0–1.0) |
+| `model_version` | varchar(64) | YES | — | FK → decision_tree_models.version |
+| `decision_source` | varchar(32) | NOT NULL | `'manual'` | `manual` atau `decision_support` |
+| `created_at` | timestamptz | NOT NULL | `now()` | Waktu evaluasi |
+
+**Indexes**:
+- `idx_evaluasi_tugas_terlambat` pada `(terlambat_id, created_at DESC)`
+- `idx_evaluasi_tugas_evaluator` pada `(evaluator_id, created_at DESC)`
+- `idx_evaluasi_tugas_target` pada `(keputusan_guru)`
+
+---
+
+### 2.6 `public.decision_tree_models` *(Baru — migrasi 20260825)*
+
+Registry model Decision Tree yang aktif. Hanya satu model boleh aktif sekaligus.
+
+| Kolom | Tipe Data | Nullable | Default | Keterangan |
+|-------|-----------|----------|---------|------------|
+| `version` | varchar(64) | NOT NULL | — | PK, nama versi model (misal: `dt-v1`) |
+| `tree_json` | jsonb | NOT NULL | — | Representasi pohon keputusan dalam JSON |
+| `feature_names` | text[] | NOT NULL | `['nilai','kelengkapan','kesesuaian']` | Nama fitur model |
+| `metrics` | jsonb | NOT NULL | `{}` | Metrik performa model (akurasi, F1, dll.) |
+| `training_rows` | integer | YES | — | Jumlah baris dataset training |
+| `criterion` | varchar(32) | YES | — | Kriteria split: `gini` atau `entropy` |
+| `max_depth` | integer | YES | — | Kedalaman maksimum pohon |
+| `random_state` | integer | YES | — | Random seed untuk reproducibility |
+| `trained_at` | timestamptz | NOT NULL | `now()` | Waktu model dilatih |
+| `is_active` | boolean | NOT NULL | `false` | Apakah model ini yang aktif |
+| `notes` | text | YES | — | Catatan tambahan |
+
+**Constraint**: `uq_decision_tree_one_active` — partial unique index yang menjamin hanya satu baris dengan `is_active = true`.
+
+**Struktur `tree_json`**:
+```json
+{
+  "version": "dt-v1",
+  "features": ["nilai", "kelengkapan", "kesesuaian"],
+  "classes": ["revisi", "selesai"],
+  "criterion": "gini",
+  "max_depth": 3,
+  "random_state": 42,
+  "root": {
+    "type": "node",
+    "feature": "nilai",
+    "threshold": 75.5,
+    "samples": 120,
+    "left": { "type": "leaf", "class": "revisi", "confidence": 0.85, ... },
+    "right": { "type": "node", ... }
+  }
+}
+```
+
+---
+
+## 3. Views
+
+### `public.v_dataset_decision_tree`
+
+View anonim untuk ekspor dataset training. Tidak memuat informasi identitas (user_id, nama, NISN, email, photo_path).
+
+| Kolom | Sumber | Keterangan |
+|-------|--------|------------|
+| `evaluation_id` | `evaluasi_tugas.id` | ID evaluasi |
+| `nilai` | `evaluasi_tugas.nilai` | Nilai tugas |
+| `kelengkapan` | `evaluasi_tugas.kelengkapan` | 1 = lengkap, 0 = tidak |
+| `kesesuaian` | `evaluasi_tugas.kesesuaian` | 1 = sesuai, 0 = tidak |
+| `target` | `evaluasi_tugas.keputusan_guru` | Label: `selesai` / `revisi` |
+| `decision_source` | `evaluasi_tugas.decision_source` | `manual` / `decision_support` |
+| `model_version` | `evaluasi_tugas.model_version` | Versi model yang digunakan |
+| `created_at` | `evaluasi_tugas.created_at` | Waktu evaluasi |
+
+---
+
+## 4. Foreign Key Constraints
 
 | Tabel (source) | Kolom | Tabel Target | Kolom Target |
 |----------------|-------|--------------|--------------|
@@ -146,12 +259,15 @@ Bukti foto pengerjaan tugas yang diupload oleh siswa.
 | `terlambat` | `user_id` | `profiles` | `id` |
 | `terlambat` | `evaluator_id` | `profiles` | `id` |
 | `bukti_evaluasi` | `terlambat_id` | `terlambat` | `id` |
+| `evaluasi_tugas` | `terlambat_id` | `terlambat` | `id` (ON DELETE CASCADE) |
+| `evaluasi_tugas` | `evaluator_id` | `profiles` | `id` |
+| `evaluasi_tugas` | `model_version` | `decision_tree_models` | `version` |
 
 ---
 
-## 4. Database Triggers
+## 5. Database Triggers
 
-### 4.1 `on_profile_created_siswa` (tabel: `profiles`, event: INSERT)
+### 5.1 `on_profile_created_siswa` (tabel: `profiles`, event: INSERT)
 
 **Fungsi**: `handle_new_siswa_profile()`
 
@@ -170,7 +286,7 @@ END;
 
 ---
 
-### 4.2 `trg_update_siswa_tardiness` (tabel: `terlambat`, event: INSERT / UPDATE / DELETE)
+### 5.2 `trg_update_siswa_tardiness` (tabel: `terlambat`, event: INSERT / UPDATE / DELETE)
 
 **Fungsi**: `fn_update_tardiness()`
 
@@ -211,7 +327,7 @@ END;
 
 ---
 
-## 5. Database Functions
+## 6. Database Functions
 
 | Nama Fungsi | Tipe | Deskripsi |
 |-------------|------|-----------|
@@ -220,6 +336,7 @@ END;
 | `handle_new_user()` | TRIGGER FUNCTION | Auto-insert ke profiles dari auth.users |
 | `is_admin()` | SECURITY FUNCTION | Cek apakah user saat ini adalah admin |
 | `is_guru()` | SECURITY FUNCTION | Cek apakah user saat ini adalah guru |
+| `record_task_evaluation(...)` | SECURITY DEFINER | *(Baru)* Simpan histori evaluasi + update terlambat dalam satu transaksi |
 | `update_siswa_tardiness()` | FUNCTION | Versi lama update statistik (tidak aktif sebagai trigger) |
 | `handle_evaluation_status()` | FUNCTION | Fungsi lama manajemen evaluasi (tidak aktif) |
 
@@ -241,4 +358,25 @@ CREATE FUNCTION is_guru() RETURNS boolean AS $$
     false
   );
 $$ LANGUAGE sql SECURITY DEFINER;
+```
+
+### Fungsi Transaksi Evaluasi (Baru)
+
+```sql
+-- Dipanggil oleh Edge Function submit-evaluation via service role
+CREATE FUNCTION public.record_task_evaluation(
+  p_terlambat_id uuid,
+  p_evaluator_id uuid,
+  p_nilai smallint,
+  p_kelengkapan boolean,
+  p_kesesuaian boolean,
+  p_keputusan_guru varchar,
+  p_prediksi_model varchar DEFAULT null,
+  p_prediction_confidence numeric DEFAULT null,
+  p_model_version varchar DEFAULT null,
+  p_decision_source varchar DEFAULT 'manual'
+) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER;
+-- Returns: id dari baris evaluasi_tugas yang baru dibuat
+-- Hak akses: hanya service_role (Edge Function)
 ```

@@ -9,6 +9,8 @@ Tertib Sekolah menggunakan **Row-Level Security (RLS)** PostgreSQL yang diaktifk
 - `detail_siswa`
 - `terlambat`
 - `bukti_evaluasi`
+- `evaluasi_tugas` *(Baru)*
+- `decision_tree_models` *(Baru)*
 
 ---
 
@@ -19,8 +21,9 @@ Tertib Sekolah menggunakan **Row-Level Security (RLS)** PostgreSQL yang diaktifk
 | **Principle of Least Privilege** | Setiap role hanya mendapat akses minimum yang dibutuhkan |
 | **RLS Server-side** | Kontrol akses dilakukan di level database, bukan hanya di frontend |
 | **JWT-based Auth** | Setiap request menggunakan token JWT dari Supabase Auth |
-| **Service Role untuk Admin Ops** | Operasi admin (create/delete user) hanya via Edge Function dengan service role key |
+| **Service Role untuk Admin Ops** | Operasi admin (create/delete user) dan evaluasi ML hanya via Edge Function dengan service role key |
 | **Env Vars Injection** | Credentials tidak di-hardcode, di-inject via `dart-define-from-file` |
+| **Fungsi SECURITY DEFINER** | `record_task_evaluation` berjalan dengan hak service_role; hak execute dicabut dari public/anon/authenticated |
 
 ---
 
@@ -78,6 +81,8 @@ Tertib Sekolah menggunakan **Row-Level Security (RLS)** PostgreSQL yang diaktifk
 - Guru: baca semua data, insert data baru, update semua data (untuk evaluasi)
 - Admin: full CRUD
 
+> **Catatan**: Update status evaluasi (`selesai`/`revisi`) dilakukan oleh Edge Function `submit-evaluation` menggunakan service role via fungsi `record_task_evaluation`, bukan langsung dari client.
+
 ---
 
 ### 3.4 Tabel `bukti_evaluasi`
@@ -101,6 +106,48 @@ Tertib Sekolah menggunakan **Row-Level Security (RLS)** PostgreSQL yang diaktifk
 
 ---
 
+### 3.5 Tabel `evaluasi_tugas` *(Baru)*
+
+| Policy Name | Command | Role | Kondisi |
+|-------------|---------|------|---------|
+| `evaluasi_tugas_select_authorized` | SELECT | authenticated | Guru/Admin: peran di profiles; Siswa: via join ke terlambat.user_id |
+
+**Kesimpulan akses `evaluasi_tugas`**:
+- **SELECT**: Guru & Admin bisa baca semua; Siswa hanya bisa baca histori milik sendiri
+- **INSERT/UPDATE/DELETE**: **Tidak ada policy client** — penulisan dilakukan secara eksklusif oleh Edge Function `submit-evaluation` menggunakan service role (melewati RLS)
+
+Policy SELECT:
+```sql
+CREATE POLICY evaluasi_tugas_select_authorized
+ON public.evaluasi_tugas FOR SELECT TO authenticated
+USING (
+  -- Guru atau admin
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid() AND p.role IN ('guru', 'admin')
+  )
+  -- Atau siswa yang bersangkutan
+  OR EXISTS (
+    SELECT 1 FROM public.terlambat t
+    WHERE t.id = evaluasi_tugas.terlambat_id
+      AND t.user_id = auth.uid()
+  )
+);
+```
+
+---
+
+### 3.6 Tabel `decision_tree_models` *(Baru)*
+
+| Policy | Keterangan |
+|--------|------------|
+| Tidak ada policy SELECT untuk client | Edge Function membaca model menggunakan service role |
+| Tidak ada policy INSERT/UPDATE/DELETE | Manajemen model dilakukan via Supabase Dashboard / SQL langsung oleh developer |
+
+**Kesimpulan**: Model Decision Tree **tidak pernah terekspos langsung** ke Flutter client. `tree_json` hanya bisa diakses oleh Edge Function dengan service role.
+
+---
+
 ## 4. Matrix Akses Ringkas
 
 | Operasi | Admin | Guru | Siswa |
@@ -118,21 +165,30 @@ Tertib Sekolah menggunakan **Row-Level Security (RLS)** PostgreSQL yang diaktifk
 | Baca keterlambatan sendiri | ✅ | N/A | ✅ |
 | Baca semua keterlambatan | ✅ | ✅ | ❌ |
 | Input keterlambatan | ✅ | ✅ | ❌ |
-| Update (evaluasi) | ✅ | ✅ | ✅*** |
+| Update (evaluasi) | ✅ | ✅*** | ✅**** |
 | Hapus | ✅ | ❌ | ❌ |
 | **bukti_evaluasi** | | | |
 | Baca bukti sendiri | ✅ | N/A | ✅ |
 | Baca semua bukti | ✅ | ✅ | ❌ |
 | Upload bukti | ✅ | ✅ | ✅ |
 | Hapus bukti | ✅ | ❌ | ❌ |
+| **evaluasi_tugas** | | | |
+| Baca histori evaluasi | ✅ | ✅ | ✅***** |
+| Tulis evaluasi | Edge Fn | Edge Fn | ❌ |
+| **decision_tree_models** | | | |
+| Akses model | Edge Fn | ❌ | ❌ |
 
-> *Karena ada policy `authenticated` read di profiles  
-> **Guru bisa update detail_siswa via trigger DB (bukan langsung)  
-> ***Siswa hanya bisa update data keterlambatan milik sendiri (untuk update status/upload bukti)
+> \* Karena ada policy `authenticated` read di profiles  
+> \*\* Guru bisa update detail_siswa via trigger DB (bukan langsung)  
+> \*\*\* Guru mengevaluasi via Edge Function `submit-evaluation` (service role)  
+> \*\*\*\* Siswa hanya bisa update data keterlambatan milik sendiri (upload bukti/status)  
+> \*\*\*\*\* Siswa hanya bisa baca histori evaluasi milik sendiri
 
 ---
 
 ## 5. Keamanan Edge Functions
+
+### `create-user` dan `delete-user`
 
 Kedua Edge Function mengimplementasikan **double verification**:
 
@@ -152,6 +208,28 @@ const { data: userData } = await supabaseClient
 
 if (userData.role !== 'admin') {
   throw new Error('Forbidden: Only admin can create users');
+}
+```
+
+### `predict-evaluation`
+
+- **Tidak memerlukan autentikasi** untuk membaca model (model tidak memuat data pribadi)
+- Menggunakan service role secara internal untuk membaca `decision_tree_models`
+- Input: `nilai`, `kelengkapan`, `kesesuaian` — tidak ada data identitas
+
+### `submit-evaluation`
+
+- **Memerlukan JWT Guru atau Admin**: Verifikasi token + cek role dari `profiles`
+- Siswa **tidak bisa** memanggil fungsi ini
+- Setelah verifikasi, memanggil `record_task_evaluation` via service role (melewati RLS)
+
+```typescript
+const role: string = profile.role;
+if (role !== 'guru' && role !== 'admin') {
+  return new Response(
+    JSON.stringify({ error: 'Hanya guru atau admin yang dapat menyimpan evaluasi' }),
+    { status: 403, ... },
+  );
 }
 ```
 
@@ -177,3 +255,8 @@ static void validate() {
   if (missing.isNotEmpty) throw Exception('Env vars tidak dikonfigurasi: ...');
 }
 ```
+
+### Keamanan Model ML
+- `tree_json` di tabel `decision_tree_models` **tidak bisa diakses** oleh Flutter client (tidak ada policy SELECT untuk authenticated)
+- Edge Function `predict-evaluation` tidak mengembalikan struktur pohon — hanya hasil prediksi (label + confidence)
+- Dataset training diekspor via view anonim `v_dataset_decision_tree` tanpa data pribadi

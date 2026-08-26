@@ -2,12 +2,13 @@
 
 ## 1. Gambaran Umum
 
-**Tertib Sekolah** adalah aplikasi mobile & multiplatform untuk manajemen kedisiplinan siswa (khususnya keterlambatan). Dibangun menggunakan arsitektur **Client-Server** dengan:
+**Tertib Sekolah** adalah aplikasi mobile & multiplatform untuk manajemen kedisiplinan siswa (khususnya keterlambatan), dilengkapi fitur **Decision Support System berbasis Decision Tree** untuk membantu guru mengevaluasi tugas. Dibangun menggunakan arsitektur **Client-Server** dengan:
 
 - **Frontend**: Flutter (Dart) — cross-platform (Android, iOS, Web, Linux, macOS, Windows)
 - **Backend**: Supabase (PostgreSQL) — BaaS (Backend-as-a-Service)
 - **Realtime**: Supabase Realtime (WebSocket-based)
 - **Serverless**: Supabase Edge Functions (Deno/TypeScript)
+- **ML Pipeline**: Python (scikit-learn) — Decision Tree untuk prediksi hasil evaluasi tugas
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -27,6 +28,9 @@
 │   │  ┌──────────────┐  ┌──────────────────────────┐  │  │
 │   │  │ AuthService  │  │   SupabaseConfig         │  │  │
 │   │  └──────────────┘  └──────────────────────────┘  │  │
+│   │  ┌────────────────────────────────────────────┐  │  │
+│   │  │       DecisionTreeService                  │  │  │
+│   │  └────────────────────────────────────────────┘  │  │
 │   └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
                            │ HTTPS / WebSocket
@@ -44,9 +48,12 @@
 │  │  ┌──────────┐ ┌───────────┐ ┌───────────────┐  │    │
 │  │  │ profiles │ │ terlambat │ │ detail_siswa  │  │    │
 │  │  └──────────┘ └───────────┘ └───────────────┘  │    │
-│  │          ┌──────────────────┐                  │    │
-│  │          │  bukti_evaluasi  │                  │    │
-│  │          └──────────────────┘                  │    │
+│  │  ┌──────────────────┐  ┌───────────────────┐   │    │
+│  │  │  bukti_evaluasi  │  │  evaluasi_tugas   │   │    │
+│  │  └──────────────────┘  └───────────────────┘   │    │
+│  │  ┌────────────────────────┐                    │    │
+│  │  │  decision_tree_models  │                    │    │
+│  │  └────────────────────────┘                    │    │
 │  │   (+ Triggers, Functions, RLS Policies)        │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
@@ -54,6 +61,13 @@
 │  │            Supabase Storage                     │    │
 │  │     (Foto bukti tugas evaluasi)                │    │
 │  └─────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+                                  ▲
+┌─────────────────────────────────┴───────────────────────┐
+│              ML PIPELINE (Offline)                      │
+│   supabase/04_ml/train_decision_tree.py                 │
+│   (scikit-learn, GridSearchCV, StratifiedKFold)         │
+│   → menghasilkan tree.json → upload ke DB               │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -66,7 +80,7 @@
 | Teknologi | Versi | Kegunaan |
 |-----------|-------|----------|
 | Flutter / Dart | SDK ^3.11.5 | Framework utama aplikasi |
-| supabase_flutter | ^2.9.1 | Client Supabase (Auth, DB, Realtime) |
+| supabase_flutter | ^2.9.1 | Client Supabase (Auth, DB, Realtime, Edge Functions) |
 | google_fonts | ^8.1.0 | Tipografi (Manrope & Inter) |
 | intl | ^0.19.0 | Format tanggal & lokalisasi bahasa Indonesia |
 | image_picker | ^1.1.2 | Mengambil foto dari kamera/galeri |
@@ -80,8 +94,18 @@
 | Database | PostgreSQL 17 | Penyimpanan data utama |
 | Auth | Supabase Auth (JWT) | Autentikasi email & password |
 | Realtime | PostgreSQL WAL + WebSocket | Sinkronisasi data real-time |
-| Edge Functions | Deno (TypeScript) | Logika server-side khusus admin |
+| Edge Functions | Deno (TypeScript) | Logika server-side khusus admin & evaluasi |
 | Storage | Supabase Storage | Penyimpanan foto bukti evaluasi |
+
+### ML Pipeline
+
+| Teknologi | Versi | Kegunaan |
+|-----------|-------|----------|
+| Python | 3.x | Script training Decision Tree |
+| scikit-learn | latest | Model Decision Tree, GridSearchCV, StratifiedKFold |
+| pandas | latest | Preprocessing dataset CSV |
+| matplotlib | latest | Visualisasi pohon keputusan |
+| joblib | latest | Serialisasi model (.joblib) |
 
 ### Infrastruktur
 
@@ -99,8 +123,9 @@ TertibSekolah/
 │   ├── lib/
 │   │   ├── main.dart                  # Entry point + inisialisasi Supabase
 │   │   ├── core/
-│   │   │   ├── auth_service.dart      # Service autentikasi (login/logout)
+│   │   │   ├── auth_service.dart      # Service autentikasi (login/logout/session)
 │   │   │   ├── supabase_config.dart   # Konfigurasi environment Supabase
+│   │   │   ├── decision_tree_service.dart # Service prediksi & submit evaluasi ML
 │   │   │   └── tardiness_service.dart # Service update level keterlambatan
 │   │   ├── screens/
 │   │   │   ├── login_screen.dart              # Halaman login
@@ -109,7 +134,7 @@ TertibSekolah/
 │   │   │   ├── siswa_dashboard_screen.dart    # Dashboard Siswa
 │   │   │   ├── input_keterlambatan_screen.dart # Form input keterlambatan
 │   │   │   ├── evaluasi_tugas_screen.dart     # Daftar tugas evaluasi
-│   │   │   ├── form_evaluasi_tugas_screen.dart # Form penilaian tugas guru
+│   │   │   ├── form_evaluasi_tugas_screen.dart # Form penilaian tugas guru (+ AI assist)
 │   │   │   ├── data_siswa_screen.dart         # Daftar data siswa
 │   │   │   └── detail_siswa_screen.dart       # Detail profil siswa
 │   │   └── theme/
@@ -125,9 +150,15 @@ TertibSekolah/
 │   └── pubspec.yaml                   # Dependensi Flutter
 │
 ├── supabase/
-│   └── functions/
-│       ├── create-user/index.ts       # Edge Function: buat user baru
-│       └── delete-user/index.ts       # Edge Function: hapus user
+│   ├── functions/
+│   │   ├── create-user/index.ts       # Edge Function: buat user baru (admin only)
+│   │   ├── delete-user/index.ts       # Edge Function: hapus user (admin only)
+│   │   ├── predict-evaluation/index.ts # Edge Function: prediksi Decision Tree
+│   │   └── submit-evaluation/index.ts  # Edge Function: simpan histori evaluasi
+│   ├── migrations/
+│   │   └── 20260825_decision_tree.sql  # Migrasi DB: tabel ML & fungsi evaluasi
+│   └── 04_ml/
+│       └── train_decision_tree.py      # Script training Decision Tree (Python)
 │
 └── Docs/                              # Folder dokumentasi (ini)
 ```
@@ -142,7 +173,7 @@ TertibSekolah/
 ┌─────────────────────────────────┐
 │         UI Layer (Screens)      │  ← Tampilan & interaksi pengguna
 ├─────────────────────────────────┤
-│       Service Layer (Core)      │  ← Logika bisnis (AuthService, dll)
+│       Service Layer (Core)      │  ← Logika bisnis (AuthService, DecisionTreeService)
 ├─────────────────────────────────┤
 │      Data Layer (Supabase)      │  ← Akses database langsung via client
 └─────────────────────────────────┘
@@ -156,6 +187,31 @@ TertibSekolah/
 2. **Write Data**: `Screen` → `supabase.from(...).insert/update()` → PostgreSQL → (trigger auto-update statistik)
 3. **Realtime**: PostgreSQL changes → Supabase Realtime → WebSocket → `_fetchDashboardData()`
 4. **Auth**: `LoginScreen` → `AuthService.signIn()` → Supabase Auth → redirect ke dashboard sesuai role
+5. **AI Predict**: `FormEvaluasiTugasScreen` → `DecisionTreeService.predict()` → Edge Function `predict-evaluation` → model aktif di DB → prediksi & confidence
+6. **AI Submit**: `FormEvaluasiTugasScreen` → `DecisionTreeService.submitEvaluation()` → Edge Function `submit-evaluation` → RPC `record_task_evaluation` → simpan histori + update `terlambat`
+
+### Decision Support System Flow
+
+```
+Guru buka FormEvaluasiTugas
+         │
+         ▼
+DecisionTreeService.predict(nilai, kelengkapan, kesesuaian)
+         │
+         ├─ Model belum aktif? → UI tanpa saran AI (manual saja)
+         │
+         └─ Model aktif? → tampilkan prediksi + confidence %
+                  │
+                  ▼
+         Guru tetapkan keputusan akhir (selesai/revisi)
+                  │
+                  ▼
+         DecisionTreeService.submitEvaluation(...)
+                  │
+                  └─ Edge Function record_task_evaluation RPC
+                       ├─ INSERT evaluasi_tugas (histori)
+                       └─ UPDATE terlambat (status + nilai)
+```
 
 ---
 
@@ -166,7 +222,7 @@ Aplikasi memiliki 3 jenis pengguna:
 | Role | Bahasa Indonesia | Akses Utama |
 |------|-----------------|-------------|
 | `admin` | Administrator | Manajemen user, statistik lengkap, semua data |
-| `guru` | Guru / Piket | Input keterlambatan, evaluasi tugas, lihat data siswa |
+| `guru` | Guru / Piket | Input keterlambatan, evaluasi tugas (+ AI assist), lihat data siswa |
 | `siswa` | Siswa | Lihat riwayat keterlambatan sendiri, upload bukti tugas |
 
 Routing otomatis dilakukan di `LoginScreen` berdasarkan nilai field `role` pada tabel `profiles`.
@@ -183,6 +239,6 @@ flutter run --dart-define-from-file=.env
 
 File `.env` (tidak di-commit ke git) berisi:
 ```
-SUPABASE_URL=https://[project-id].supabase.co
+SUPABASE_URL=https://your_project_id.supabase.co
 SUPABASE_ANON_KEY=[anon-public-key]
 ```

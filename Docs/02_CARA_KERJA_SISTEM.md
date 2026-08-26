@@ -2,7 +2,7 @@
 
 ## 1. Proses Bisnis Utama
 
-Sistem Tertib Sekolah mengelola **siklus keterlambatan siswa** dari pencatatan hingga evaluasi tugas:
+Sistem Tertib Sekolah mengelola **siklus keterlambatan siswa** dari pencatatan hingga evaluasi tugas, kini didukung **Decision Support System berbasis Decision Tree**:
 
 ```
 [Siswa Terlambat]
@@ -20,11 +20,18 @@ Sistem Tertib Sekolah mengelola **siklus keterlambatan siswa** dari pencatatan h
 [Status berubah: "menunggu_nilai"]
       │
       ▼
+[Guru Buka Form Evaluasi]
+      │  (DecisionTreeService.predict() → saran AI opsional)
+      ▼
 [Guru Evaluasi & Beri Nilai]
       │  (kelengkapan, kesesuaian, nilai 0–100)
-      │  (bisa "revisi" jika tidak sesuai)
+      │  (keputusan: "selesai" atau "revisi")
       ▼
-[Status berubah: "selesai"]
+[submit-evaluation Edge Function]
+      │  ├─ INSERT histori ke evaluasi_tugas
+      │  └─ UPDATE tabel terlambat (status + nilai)
+      ▼
+[Status berubah: "selesai" atau "revisi"]
       │
       ▼
 [Statistik Siswa Diperbarui Otomatis oleh Trigger DB]
@@ -65,6 +72,7 @@ AuthService.signIn()
 ### Session Management
 
 - Session JWT disimpan oleh `supabase_flutter` (otomatis)
+- `AuthService.currentSession` tersedia untuk mengecek session aktif saat ini
 - Tidak ada pemeriksaan session saat startup (langsung ke LoginScreen setiap buka app)
 - Logout: `AuthService.signOut()` → `supabase.auth.signOut()` → kembali ke LoginScreen
 
@@ -77,7 +85,7 @@ AuthService.signIn()
 **Dashboard Admin** menyediakan:
 - **Statistik ringkasan**: Total siswa, total keterlambatan, breakdown status
 - **Manajemen User**: Tambah/hapus user (Guru, Siswa, Admin baru)
-- **Evaluasi Tugas**: Bisa ikut mengevaluasi tugas seperti Guru
+- **Evaluasi Tugas**: Bisa ikut mengevaluasi tugas seperti Guru (termasuk AI assist)
 
 **Menambah User Baru**:
 ```
@@ -157,17 +165,27 @@ DB Trigger: trg_update_siswa_tardiness
   └─ Hitung ulang total_terlambat & status_disiplin di detail_siswa
 ```
 
-**Evaluasi / Penilaian Tugas**:
+**Evaluasi / Penilaian Tugas (dengan AI assist)**:
 ```
 FormEvaluasiTugasScreen:
   ├─ Lihat foto bukti tugas (dari bukti_evaluasi)
   ├─ Input nilai (0-100)
   ├─ Centang kelengkapan & kesesuaian
-  └─ Hasil validasi (teks)
+  │
+  ├─ [AI Assist] DecisionTreeService.predict(nilai, kelengkapan, kesesuaian)
+  │       ├─ Model tidak aktif → tampilkan form tanpa saran AI
+  │       └─ Model aktif → tampilkan prediksi (selesai/revisi) + confidence %
+  │
+  ├─ Guru tetapkan keputusan akhir (selesai/revisi)
+  └─ Hasil validasi (teks opsional)
          │
          ▼
-UPDATE terlambat SET status='selesai', nilai=..., kelengkapan=..., kesesuaian=...
-  └─ ATAU status='revisi' jika tugas tidak sesuai
+DecisionTreeService.submitEvaluation(...)
+  └─ POST /functions/v1/submit-evaluation
+       ├─ Verifikasi JWT (guru/admin)
+       └─ RPC record_task_evaluation:
+            ├─ INSERT evaluasi_tugas (histori + data model)
+            └─ UPDATE terlambat SET status=keputusan, nilai=..., ...
 ```
 
 ---
@@ -244,6 +262,8 @@ Total Keterlambatan Aktif:
 [dibatalkan]  ← Bisa dari status apapun (oleh Admin/Guru)
 ```
 
+> **Catatan**: Status `selesai` dan `revisi` sekarang ditulis melalui Edge Function `submit-evaluation` (via RPC `record_task_evaluation`) untuk memastikan histori evaluasi tersimpan dengan data model AI.
+
 ---
 
 ## 6. Realtime Updates
@@ -265,3 +285,56 @@ supabase
 ```
 
 Setiap ada perubahan di tabel `terlambat` atau `detail_siswa`, dashboard akan **otomatis refresh** tanpa perlu pull-to-refresh manual.
+
+---
+
+## 7. Decision Support System (ML Pipeline)
+
+### Fase Pengumpulan Data (Awal Deployment)
+
+Saat model belum ada di tabel `decision_tree_models`, Edge Function `predict-evaluation` mengembalikan `{ model_active: false }`. UI tetap berfungsi normal — guru mengevaluasi secara manual. Semua evaluasi tetap disimpan ke tabel `evaluasi_tugas` sebagai data training.
+
+### Pelatihan Model (Offline)
+
+```bash
+# Ekspor dataset dari view anonim di DB
+# (v_dataset_decision_tree tidak memuat data pribadi siswa)
+
+# Jalankan script training
+python supabase/04_ml/train_decision_tree.py \
+  --input dataset.csv \
+  --out ./output \
+  --version "dt-v1"
+
+# Output:
+#   tree.json              ← Model siap deploy ke DB
+#   model.joblib           ← Model untuk reproducibility
+#   model_metrics.json     ← Akurasi, F1, confusion matrix
+#   decision_tree.png      ← Visualisasi pohon
+#   classification_report.csv
+```
+
+### Deploy Model ke DB
+
+```sql
+-- Upload tree.json ke tabel decision_tree_models
+INSERT INTO public.decision_tree_models
+  (version, tree_json, training_rows, criterion, max_depth, is_active)
+VALUES
+  ('dt-v1', '<isi tree.json>', 150, 'gini', 3, true);
+```
+
+> Hanya satu model boleh aktif sekaligus (dijamin oleh partial unique index `uq_decision_tree_one_active`).
+
+### Dataset untuk Training
+
+Dataset bersumber dari view `v_dataset_decision_tree` — sebuah view anonim yang mengekspos data evaluasi **tanpa** informasi identitas (tidak ada `user_id`, nama, NISN, email, atau `photo_path`).
+
+Fitur model:
+| Fitur | Tipe | Keterangan |
+|-------|------|------------|
+| `nilai` | integer (0–100) | Nilai tugas yang diberikan guru |
+| `kelengkapan` | boolean (0/1) | Apakah tugas lengkap |
+| `kesesuaian` | boolean (0/1) | Apakah tugas sesuai instruksi |
+
+Target: `keputusan_guru` → `selesai` atau `revisi`
