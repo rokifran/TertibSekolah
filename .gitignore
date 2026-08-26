@@ -166,6 +166,10 @@ Thumbs.db
 # Added by code-review-graph
 .code-review-graph/
 
+# AI Agent configs (not used by project)
+.agents/
+skills-lock.json
+
 # ==============================================================================
 # AI Coding Assistants & Configurations
 # ==============================================================================
