@@ -1,0 +1,10 @@
+nilai,kelengkapan,kesesuaian,actual,prediction,prediction_confidence
+60,1,0,selesai,revisi,1.0
+75,1,1,revisi,revisi,0.6666666666666666
+58,0,1,revisi,revisi,1.0
+50,1,0,revisi,revisi,1.0
+88,1,1,selesai,selesai,1.0
+63,0,1,selesai,revisi,1.0
+85,1,1,selesai,selesai,1.0
+80,1,1,selesai,revisi,0.6666666666666666
+65,0,0,revisi,revisi,1.0

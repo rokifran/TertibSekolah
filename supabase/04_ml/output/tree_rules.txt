@@ -1,0 +1,19 @@
+|--- nilai <= 80.50
+|   |--- kelengkapan <= 0.50
+|   |   |--- nilai <= 62.50
+|   |   |   |--- nilai <= 61.00
+|   |   |   |   |--- class: revisi
+|   |   |   |--- nilai >  61.00
+|   |   |   |   |--- class: selesai
+|   |   |--- nilai >  62.50
+|   |   |   |--- class: revisi
+|   |--- kelengkapan >  0.50
+|   |   |--- nilai <= 63.50
+|   |   |   |--- class: revisi
+|   |   |--- nilai >  63.50
+|   |   |   |--- nilai <= 69.50
+|   |   |   |   |--- class: selesai
+|   |   |   |--- nilai >  69.50
+|   |   |   |   |--- class: revisi
+|--- nilai >  80.50
+|   |--- class: selesai

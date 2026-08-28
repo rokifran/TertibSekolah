@@ -1,0 +1,53 @@
+{
+  "model_version": "dt-v1",
+  "features": [
+    "nilai",
+    "kelengkapan",
+    "kesesuaian"
+  ],
+  "target": "target",
+  "rows_total": 45,
+  "rows_train": 36,
+  "rows_test": 9,
+  "class_distribution": {
+    "selesai": 26,
+    "revisi": 19
+  },
+  "test_size": 0.2,
+  "random_state": 42,
+  "cv_splits": 5,
+  "best_params": {
+    "class_weight": null,
+    "criterion": "entropy",
+    "max_depth": 4,
+    "min_samples_leaf": 1
+  },
+  "best_cv_f1_macro": 0.8236507936507937,
+  "holdout": {
+    "accuracy": 0.6666666666666666,
+    "precision_macro": 0.7857142857142857,
+    "recall_macro": 0.7,
+    "f1_macro": 0.6493506493506493
+  },
+  "confusion_matrix": {
+    "labels": [
+      "revisi",
+      "selesai"
+    ],
+    "matrix": [
+      [
+        4,
+        0
+      ],
+      [
+        3,
+        2
+      ]
+    ]
+  },
+  "feature_importance": {
+    "nilai": 0.8987999432740444,
+    "kelengkapan": 0.10120005672595547,
+    "kesesuaian": 0.0
+  }
+}
