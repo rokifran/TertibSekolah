@@ -1,0 +1,121 @@
+{
+  "version": "dt-v1",
+  "features": [
+    "nilai",
+    "kelengkapan",
+    "kesesuaian"
+  ],
+  "classes": [
+    "revisi",
+    "selesai"
+  ],
+  "criterion": "entropy",
+  "max_depth": 4,
+  "random_state": 42,
+  "root": {
+    "type": "node",
+    "feature": "nilai",
+    "threshold": 80.5,
+    "samples": 36,
+    "left": {
+      "type": "node",
+      "feature": "kelengkapan",
+      "threshold": 0.5,
+      "samples": 21,
+      "left": {
+        "type": "node",
+        "feature": "nilai",
+        "threshold": 62.5,
+        "samples": 11,
+        "left": {
+          "type": "node",
+          "feature": "nilai",
+          "threshold": 61.0,
+          "samples": 4,
+          "left": {
+            "type": "leaf",
+            "class": "revisi",
+            "confidence": 1.0,
+            "samples": 3,
+            "distribution": {
+              "revisi": 1,
+              "selesai": 0
+            }
+          },
+          "right": {
+            "type": "leaf",
+            "class": "selesai",
+            "confidence": 1.0,
+            "samples": 1,
+            "distribution": {
+              "revisi": 0,
+              "selesai": 1
+            }
+          }
+        },
+        "right": {
+          "type": "leaf",
+          "class": "revisi",
+          "confidence": 1.0,
+          "samples": 7,
+          "distribution": {
+            "revisi": 1,
+            "selesai": 0
+          }
+        }
+      },
+      "right": {
+        "type": "node",
+        "feature": "nilai",
+        "threshold": 63.5,
+        "samples": 10,
+        "left": {
+          "type": "leaf",
+          "class": "revisi",
+          "confidence": 1.0,
+          "samples": 3,
+          "distribution": {
+            "revisi": 1,
+            "selesai": 0
+          }
+        },
+        "right": {
+          "type": "node",
+          "feature": "nilai",
+          "threshold": 69.5,
+          "samples": 7,
+          "left": {
+            "type": "leaf",
+            "class": "selesai",
+            "confidence": 1.0,
+            "samples": 4,
+            "distribution": {
+              "revisi": 0,
+              "selesai": 1
+            }
+          },
+          "right": {
+            "type": "leaf",
+            "class": "revisi",
+            "confidence": 0.666667,
+            "samples": 3,
+            "distribution": {
+              "revisi": 1,
+              "selesai": 0
+            }
+          }
+        }
+      }
+    },
+    "right": {
+      "type": "leaf",
+      "class": "selesai",
+      "confidence": 1.0,
+      "samples": 15,
+      "distribution": {
+        "revisi": 0,
+        "selesai": 1
+      }
+    }
+  }
+}
