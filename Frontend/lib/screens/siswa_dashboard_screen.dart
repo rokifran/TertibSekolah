@@ -543,6 +543,9 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     final int assignedCount = _tasks
         .where((t) => t['status_evaluasi'] == 'mengerjakan')
         .length;
+    final int revisiCount = _tasks
+        .where((t) => t['status_evaluasi'] == 'revisi')
+        .length;
     final int submittedCount = _tasks
         .where((t) => t['status_evaluasi'] == 'menunggu_nilai')
         .length;
@@ -575,6 +578,16 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
           subtitle: 'Perlu segera diselesaikan',
           count: assignedCount,
         ),
+        if (revisiCount > 0) ...[
+          const SizedBox(height: 12),
+          _buildStatusRow(
+            icon: Icons.refresh,
+            color: AppColors.error,
+            title: 'Perlu Revisi',
+            subtitle: 'Tugas dikembalikan guru untuk diperbaiki',
+            count: revisiCount,
+          ),
+        ],
         const SizedBox(height: 12),
         _buildStatusRow(
           icon: Icons.pending_actions,
@@ -773,6 +786,8 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
     final status = task['status_evaluasi'] ?? 'menunggu';
     final isPendingTask = status == 'menunggu';
     final isSubmitted = status == 'menunggu_nilai';
+    final isRevisi = status == 'revisi';
+    final isMengerjakan = status == 'mengerjakan';
 
     final evaluationList = task['bukti_evaluasi'];
     List<Map<String, dynamic>> evaluations = [];
@@ -782,7 +797,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
       evaluations = [Map<String, dynamic>.from(evaluationList)];
     }
 
-    final isGraded = status == 'selesai' || task['nilai'] != null;
+    final isGraded = status == 'selesai';
     final evaluation = task;
 
     final taskDescription = isPendingTask
@@ -808,7 +823,7 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                 decoration: BoxDecoration(
                   color: isGraded
                       ? AppColors.primary
-                      : (isSubmitted ? AppColors.secondary : AppColors.error),
+                      : (isRevisi || isMengerjakan ? AppColors.error : (isSubmitted ? AppColors.secondary : AppColors.error)),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -880,7 +895,6 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ],
-
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -895,29 +909,41 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
                 Icon(
                   isGraded
                       ? Icons.check_circle
-                      : (isSubmitted
-                            ? Icons.pending_actions
-                            : (isPendingTask
-                                  ? Icons.hourglass_empty
-                                  : Icons.warning_amber)),
+                      : (isRevisi
+                            ? Icons.refresh
+                            : (isSubmitted
+                                  ? Icons.pending_actions
+                                  : (isPendingTask
+                                        ? Icons.hourglass_empty
+                                        : (isMengerjakan
+                                              ? Icons.assignment
+                                              : Icons.warning_amber)))),
                   color: isGraded
                       ? AppColors.primary
-                      : (isSubmitted
-                            ? AppColors.secondary
-                            : (isPendingTask
-                                  ? AppColors.outline
-                                  : AppColors.error)),
+                      : (isRevisi
+                            ? AppColors.error
+                            : (isSubmitted
+                                  ? AppColors.secondary
+                                  : (isPendingTask
+                                        ? AppColors.outline
+                                        : (isMengerjakan
+                                              ? AppColors.primary
+                                              : AppColors.error)))),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   isGraded
                       ? 'Status: Tuntas (Dinilai)'
-                      : (isSubmitted
-                            ? 'Status: Menunggu Evaluasi'
-                            : (isPendingTask
-                                  ? 'Status: Menunggu Tugas'
-                                  : 'Status: Menunggu Bukti')),
+                      : (isRevisi
+                            ? 'Status: Perlu Revisi'
+                            : (isSubmitted
+                                  ? 'Status: Menunggu Evaluasi'
+                                  : (isPendingTask
+                                        ? 'Status: Menunggu Tugas'
+                                        : (isMengerjakan
+                                              ? 'Status: Mengerjakan'
+                                              : 'Status: Menunggu Bukti')))),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -928,14 +954,16 @@ class _SiswaDashboardScreenState extends State<SiswaDashboardScreen> {
               ],
             ),
           ),
-          if (status == 'mengerjakan' || status == 'menunggu_nilai') ...[
+          if (status == 'mengerjakan' || status == 'menunggu_nilai' || status == 'revisi') ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => _uploadProof(task['id']),
                 icon: const Icon(Icons.upload_file),
-                label: Text(status == 'menunggu_nilai' ? 'Tambah Bukti' : 'Unggah Bukti'),
+                label: Text(status == 'revisi' 
+                      ? 'Unggah Bukti Ulang' 
+                      : (status == 'menunggu_nilai' ? 'Tambah Bukti' : 'Unggah Bukti')),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
