@@ -15,4 +15,4 @@ Selamat datang di folder dokumentasi proyek **Tertib Sekolah** — aplikasi mana
 
 ---
 
-> Dokumentasi ini diperbarui berdasarkan analisis source code dan schema database per **26 Agustus 2026**.
+> Dokumentasi ini diperbarui berdasarkan analisis source code dan schema database per **28 Agustus 2026**.

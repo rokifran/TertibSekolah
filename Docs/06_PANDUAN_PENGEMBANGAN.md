@@ -35,10 +35,12 @@ flutter pub get
 cp .env.example .env
 ```
 
-2. Isi file `.env` dengan credentials Supabase:
-```
-SUPABASE_URL=https://your_project_id.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
+2. Isi file `.env` dengan credentials Supabase (format JSON):
+```json
+{
+  "SUPABASE_URL": "https://your_project_id.supabase.co",
+  "SUPABASE_ANON_KEY": "your_anon_key_here"
+}
 ```
 
 > **Dapatkan credentials** dari: [Supabase Dashboard](https://supabase.com/dashboard) → Project Settings → API

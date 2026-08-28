@@ -238,7 +238,9 @@ flutter run --dart-define-from-file=.env
 ```
 
 File `.env` (tidak di-commit ke git) berisi:
-```
-SUPABASE_URL=https://your_project_id.supabase.co
-SUPABASE_ANON_KEY=[anon-public-key]
+```json
+{
+  "SUPABASE_URL": "https://your_project_id.supabase.co",
+  "SUPABASE_ANON_KEY": "your-anon-key-here"
+}
 ```
